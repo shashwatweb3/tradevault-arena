@@ -4,8 +4,10 @@ import { X } from "lucide-react";
 import { shortAddress } from "@/lib/format";
 import {
   detectWalletOptions,
+  enableWallet,
   normalizeWalletErrorMessage,
   type WalletAccount,
+  type EnabledWallet,
   type WalletOption,
 } from "@/lib/wallet";
 
@@ -28,6 +30,8 @@ export function WalletConnectModal({
   const [loading, setLoading] = useState(false);
   const [submittingKey, setSubmittingKey] = useState<string | null>(null);
   const [selectedWallet, setSelectedWallet] = useState<WalletOption | null>(null);
+  const [selectedAccounts, setSelectedAccounts] = useState<WalletAccount[]>([]);
+  const [emptyStateMessage, setEmptyStateMessage] = useState<string | null>(null);
   const [step, setStep] = useState<ModalStep>("wallets");
 
   useEffect(() => {
@@ -35,6 +39,8 @@ export function WalletConnectModal({
       setWallets([]);
       setLoading(false);
       setSelectedWallet(null);
+      setSelectedAccounts([]);
+      setEmptyStateMessage(null);
       setStep("wallets");
       setSubmittingKey(null);
       return;
@@ -48,14 +54,12 @@ export function WalletConnectModal({
         const nextWallets = await detectWalletOptions();
         if (cancelled) return;
         setWallets(nextWallets);
+        setEmptyStateMessage(null);
 
-        const hasAnyEnabled = nextWallets.some((wallet) => wallet.accountCount > 0);
         const hasAnyInstalled = nextWallets.some((wallet) => wallet.installed);
-        if (!hasAnyEnabled) {
-          onError(
-            hasAnyInstalled
-              ? "No accounts found. Unlock your wallet extension and make sure at least one account is available."
-              : "Wallet extension not found. Install Polkadot JS, SubWallet, Talisman, or Enkrypt to continue.",
+        if (!hasAnyInstalled) {
+          setEmptyStateMessage(
+            "No supported wallet extension was detected. On mobile, open TradeVault Arena inside the SubWallet, Talisman, or Enkrypt in-app browser, or use a desktop extension.",
           );
         }
       } catch (error) {
@@ -74,21 +78,39 @@ export function WalletConnectModal({
   }, [onError, open]);
 
   const visibleAccounts = useMemo(
-    () => selectedWallet?.accounts ?? [],
-    [selectedWallet],
+    () => selectedAccounts,
+    [selectedAccounts],
   );
 
   const handleWalletSelect = async (wallet: WalletOption) => {
-    if (wallet.accountCount === 0) return;
+    if (!wallet.installed) return;
 
-    if (wallet.accountCount === 1) {
-      const onlyAccount = wallet.accounts[0];
+    setSubmittingKey(wallet.source);
+    try {
+      const enabled = await enableWallet(wallet.source);
+      await handleEnabledWallet(wallet, enabled);
+    } catch (error) {
+      onError(normalizeWalletErrorMessage(error, wallet.name));
+    } finally {
+      setSubmittingKey(null);
+    }
+  };
+
+  const handleEnabledWallet = async (wallet: WalletOption, enabled: EnabledWallet) => {
+    if (enabled.accounts.length === 0) {
+      onError(`No accounts found in ${wallet.name}. Open the extension, unlock it, and select an account.`);
+      return;
+    }
+
+    if (enabled.accounts.length === 1) {
+      const onlyAccount = enabled.accounts[0];
       if (!onlyAccount) return;
       await handleAccountSelect(wallet, onlyAccount);
       return;
     }
 
     setSelectedWallet(wallet);
+    setSelectedAccounts(enabled.accounts);
     setStep("accounts");
   };
 
@@ -151,6 +173,7 @@ export function WalletConnectModal({
                 onClick={() => {
                   setStep("wallets");
                   setSelectedWallet(null);
+                  setSelectedAccounts([]);
                 }}
                 className="mt-4 text-sm font-medium text-[var(--primary)] transition hover:text-[#67e8f9]"
               >
@@ -165,13 +188,22 @@ export function WalletConnectModal({
                 </div>
               ) : null}
 
+              {!loading && emptyStateMessage ? (
+                <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
+                  {emptyStateMessage}
+                </div>
+              ) : null}
+
               {!loading && step === "wallets"
                 ? wallets.map((wallet) => {
-                    const disabled = wallet.accountCount === 0 || Boolean(submittingKey);
+                    const disabled = !wallet.installed || Boolean(submittingKey);
                     const statusLabel =
-                      wallet.accountCount > 0
+                      wallet.installed && wallet.accountCount > 0
                         ? `Enabled${wallet.accountCount > 1 ? ` · ${wallet.accountCount} accounts` : " · 1 account"}`
+                        : wallet.installed
+                          ? "Enabled"
                         : "Disabled";
+                    const isSubmitting = submittingKey === wallet.source;
 
                     return (
                       <button
@@ -193,21 +225,23 @@ export function WalletConnectModal({
                         <div className="min-w-0 flex-1">
                           <div className="text-base font-semibold text-[var(--text)]">{wallet.name}</div>
                           <div className="mt-1 text-sm text-[var(--muted)]">
-                            {wallet.accountCount > 0
-                              ? "Extension detected and ready to connect."
-                              : wallet.installed
-                                ? "Extension detected, but no accounts are available."
-                                : "Extension not installed or not enabled for this app."}
+                            {isSubmitting
+                              ? "Requesting wallet permission..."
+                              : wallet.accountCount > 0
+                                ? "Extension detected and account access is ready."
+                                : wallet.installed
+                                  ? "Extension detected. Click to authorize access and choose an account."
+                                  : "Extension not installed in this browser."}
                           </div>
                         </div>
                         <div
                           className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-                            wallet.accountCount > 0
+                            wallet.installed
                               ? "bg-emerald-500/15 text-emerald-300"
                               : "bg-white/[0.06] text-slate-400"
                           }`}
                         >
-                          {statusLabel}
+                          {isSubmitting ? "Connecting..." : statusLabel}
                         </div>
                       </button>
                     );

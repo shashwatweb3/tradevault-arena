@@ -7,6 +7,8 @@ import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 
 const APP_NAME = "TradeVault Arena";
 const VARA_SS58_PREFIX = 137;
+const INJECTED_POLL_MS = 200;
+const INJECTED_POLL_ATTEMPTS = 8;
 
 type InjectedAccountLike = {
   address: string;
@@ -49,8 +51,15 @@ export type EnabledWallet = {
   source: string;
 };
 
+export type InjectedWalletInfo = {
+  key: string;
+  name: string;
+  version?: string;
+};
+
 type InjectedWindowProvider = {
   enable?: (origin: string) => Promise<unknown>;
+  name?: string;
   version?: string;
 };
 
@@ -85,6 +94,73 @@ export { toVaraAddress };
 function injectedRegistry(): Record<string, InjectedWindowProvider> {
   if (typeof window === "undefined") return {};
   return window.injectedWeb3 ?? {};
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function normalizeWalletId(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_.]+/g, "-");
+}
+
+function matchSupportedSource(wallet: InjectedWalletInfo): SupportedWalletSource | null {
+  const normalizedKey = normalizeWalletId(wallet.key);
+  const normalizedName = normalizeWalletId(wallet.name);
+
+  if (
+    normalizedKey.includes("polkadot-js")
+    || normalizedName.includes("polkadot-js")
+    || normalizedName.includes("polkadotjs")
+  ) {
+    return "polkadot-js";
+  }
+
+  if (
+    normalizedKey.includes("subwallet")
+    || normalizedName.includes("subwallet")
+  ) {
+    return "subwallet-js";
+  }
+
+  if (
+    normalizedKey.includes("talisman")
+    || normalizedName.includes("talisman")
+  ) {
+    return "talisman";
+  }
+
+  if (
+    normalizedKey.includes("enkrypt")
+    || normalizedName.includes("enkrypt")
+  ) {
+    return "enkrypt";
+  }
+
+  return null;
+}
+
+export function getInjectedWallets(): InjectedWalletInfo[] {
+  if (typeof window === "undefined") return [];
+
+  const injected = window.injectedWeb3;
+  if (!injected) return [];
+
+  return Object.keys(injected).map((key) => ({
+    key,
+    name: injected[key]?.name || key,
+    version: injected[key]?.version,
+  }));
+}
+
+async function waitForInjectedWallets(): Promise<InjectedWalletInfo[]> {
+  for (let attempt = 0; attempt < INJECTED_POLL_ATTEMPTS; attempt += 1) {
+    const wallets = getInjectedWallets();
+    if (wallets.length > 0) return wallets;
+    await sleep(INJECTED_POLL_MS);
+  }
+
+  return getInjectedWallets();
 }
 
 export function normalizeWalletErrorMessage(error: unknown, source?: string): string {
@@ -135,18 +211,36 @@ async function requestExtensionAccess() {
   return extensions;
 }
 
+function getSupportedInjectedWalletMap(injectedWallets: InjectedWalletInfo[]) {
+  const supported = new Map<SupportedWalletSource, InjectedWalletInfo>();
+
+  injectedWallets.forEach((wallet) => {
+    const source = matchSupportedSource(wallet);
+    if (source && !supported.has(source)) {
+      supported.set(source, wallet);
+    }
+  });
+
+  return supported;
+}
+
 export async function detectWalletOptions(): Promise<WalletOption[]> {
-  const extensions = await requestExtensionAccess();
-  const accounts = (await web3Accounts()).map((account) =>
-    normalizeAccount(account as InjectedAccountLike),
-  );
-  const injectedSources = new Set(Object.keys(injectedRegistry()));
+  const injectedWallets = await waitForInjectedWallets();
+  const supportedInjectedWallets = getSupportedInjectedWalletMap(injectedWallets);
+  let accounts: WalletAccount[] = [];
+
+  try {
+    accounts = (await web3Accounts()).map((account) =>
+      normalizeAccount(account as InjectedAccountLike),
+    );
+  } catch {
+    accounts = [];
+  }
 
   return SUPPORTED_WALLETS.map((wallet) => {
     const walletAccounts = accounts.filter((account) => account.meta.source === wallet.source);
     const installed =
-      extensions.some((extension) => extension.name === wallet.source)
-      || injectedSources.has(wallet.source)
+      supportedInjectedWallets.has(wallet.source)
       || walletAccounts.length > 0;
 
     return {
@@ -154,7 +248,7 @@ export async function detectWalletOptions(): Promise<WalletOption[]> {
       accountCount: walletAccounts.length,
       accounts: walletAccounts,
       installed,
-      status: walletAccounts.length > 0 ? "enabled" : "disabled",
+      status: installed ? "enabled" : "disabled",
     };
   });
 }
@@ -162,27 +256,49 @@ export async function detectWalletOptions(): Promise<WalletOption[]> {
 export async function listWallets(): Promise<string[]> {
   const wallets = await detectWalletOptions();
   return wallets
-    .filter((wallet) => wallet.accountCount > 0)
+    .filter((wallet) => wallet.installed)
     .map((wallet) => wallet.source);
 }
 
+const enabledWalletCache = new Map<string, Promise<EnabledWallet>>();
+
 export async function enableWallet(source: string): Promise<EnabledWallet> {
-  const wallets = await detectWalletOptions();
-  const target = wallets.find((wallet) => wallet.source === source);
+  const cached = enabledWalletCache.get(source);
+  if (cached) return cached;
 
-  if (!target || !target.installed) {
-    throw new Error(`Wallet "${source}" is not available.`);
+  const pending = (async () => {
+    const wallets = await detectWalletOptions();
+    const target = wallets.find((wallet) => wallet.source === source);
+
+    if (!target || !target.installed) {
+      throw new Error(`Wallet "${source}" is not available.`);
+    }
+
+    await requestExtensionAccess();
+
+    const accounts = (await web3Accounts()).map((account) =>
+      normalizeAccount(account as InjectedAccountLike),
+    );
+    const sourceAccounts = accounts.filter((account) => account.meta.source === source);
+
+    if (sourceAccounts.length === 0) {
+      throw new Error(`No accounts found in "${target.name}".`);
+    }
+
+    const injector = await web3FromSource(source);
+
+    return {
+      accounts: sourceAccounts,
+      signer: injector.signer ?? null,
+      source,
+    };
+  })();
+
+  enabledWalletCache.set(source, pending);
+
+  try {
+    return await pending;
+  } finally {
+    enabledWalletCache.delete(source);
   }
-
-  if (target.accounts.length === 0) {
-    throw new Error(`No accounts found in "${target.name}".`);
-  }
-
-  const injector = await web3FromSource(source);
-
-  return {
-    accounts: target.accounts,
-    signer: injector.signer ?? null,
-    source,
-  };
 }
