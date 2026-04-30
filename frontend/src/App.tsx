@@ -57,6 +57,7 @@ import {
   claimReward,
   closePosition,
   createTournament,
+  endTournament,
   fetchAdmin,
   fetchCurrentMockPrice,
   fetchLeaderboard,
@@ -65,23 +66,25 @@ import {
   joinTournament,
   keeperTick,
   openPosition,
+  processTournament,
+  settleTournament,
 } from "@/lib/arena";
 import {
   describeCountdown,
+  formatUsd,
   formatChainUsdPrice,
   formatPercentBps,
   formatPlanck,
-  formatSigned,
   formatTimestamp,
   formatUsdPrice,
-  fromChainPriceValue,
+  fromContractPrice,
   isProgramIdLike,
   normalizeTimestampMs,
   parsePlanck,
   parseUnsignedInteger,
   sameAddress,
   shortAddress,
-  toChainPriceValue,
+  toContractPrice,
   toBigIntValue,
   toDatetimeLocalValue,
 } from "@/lib/format";
@@ -315,21 +318,16 @@ export function App() {
   });
 
   const isAdmin = sameAddress(account?.address, adminQuery.data);
-  const walletActionReason = getWalletActionReason(walletStatus);
-
   const createTournamentMutation = useMutation({
     mutationFn: async (input: CreateTournamentInput) => {
       if (!api || !txAccount) throw new Error("Connect a wallet to create a tournament.");
       return createTournament(api, programId, txAccount, input);
     },
-    onSuccess: async (created) => {
-      await refreshArena();
+    onSuccess: (created) => {
       setSelectedTournamentId(created.tournament_id);
       setCreateForm(defaultCreateForm());
       setCreateFormError(null);
-      pushToast("success", `Tournament #${created.tournament_id} created.`);
     },
-    onError: (error) => pushToast("error", extractErrorMessage(error)),
   });
   const updatePriceMutation = useMutation({
     mutationFn: async (newPrice: bigint) => {
@@ -344,20 +342,50 @@ export function App() {
         newPrice,
       );
     },
-    onSuccess: async (result) => {
-      await refreshArena();
+    onSuccess: (result) => {
       setLastPriceSyncAt(Date.now());
       setSyncWarning(null);
-      if (result.positions_closed > 0 || result.tournament_ended || result.tournament_settled) {
-        pushToast(
-          "info",
-          `Price synced${result.positions_closed ? ` · ${result.positions_closed} position${result.positions_closed === 1 ? "" : "s"} closed` : ""}${result.tournament_ended ? " · tournament ended" : ""}${result.tournament_settled ? " · tournament settled" : ""}.`,
-        );
-      } else {
-        pushToast("success", "Price synced and processed.");
-      }
     },
     onError: (error) => setSyncWarning(extractErrorMessage(error)),
+  });
+  const processTournamentMutation = useMutation({
+    mutationFn: async () => {
+      if (!api || !txAccount || !selectedTournament) {
+        throw new Error("Select a tournament and connect the admin wallet first.");
+      }
+      return processTournament(
+        api,
+        programId,
+        txAccount,
+        toBigIntValue(selectedTournament.tournament_id),
+      );
+    },
+  });
+  const endTournamentMutation = useMutation({
+    mutationFn: async () => {
+      if (!api || !txAccount || !selectedTournament) {
+        throw new Error("Select a tournament and connect the admin wallet first.");
+      }
+      return endTournament(
+        api,
+        programId,
+        txAccount,
+        toBigIntValue(selectedTournament.tournament_id),
+      );
+    },
+  });
+  const settleTournamentMutation = useMutation({
+    mutationFn: async () => {
+      if (!api || !txAccount || !selectedTournament) {
+        throw new Error("Select a tournament and connect the admin wallet first.");
+      }
+      return settleTournament(
+        api,
+        programId,
+        txAccount,
+        toBigIntValue(selectedTournament.tournament_id),
+      );
+    },
   });
   const joinMutation = useMutation({
     mutationFn: async (tournament: TournamentView) => {
@@ -370,14 +398,9 @@ export function App() {
         toBigIntValue(tournament.entry_fee),
       );
     },
-    onSuccess: async (_result, tournament) => {
-      await refreshArena();
-      pushToast(
-        "success",
-        `Joined tournament. ${formatPlanck(tournament.entry_fee)} entry fee submitted.`,
-      );
+    onSuccess: (_result, _tournament) => {
+      setTradeFormError(null);
     },
-    onError: (error) => pushToast("error", extractErrorMessage(error)),
   });
 
   const openPositionMutation = useMutation({
@@ -408,7 +431,7 @@ export function App() {
         riskControls.takeProfitPrice,
       );
     },
-    onSuccess: async (_result, variables) => {
+    onSuccess: (_result, variables) => {
       if (account?.address && selectedTournament?.tournament_id && currentPriceValue > 0n) {
         const nextHistory = appendTradeHistory(
           programId,
@@ -425,14 +448,8 @@ export function App() {
         );
         setTradeHistory(nextHistory);
       }
-
-      await refreshArena();
-      pushToast(
-        "success",
-        `${variables.direction} position opened at ${formatChainUsdPrice(currentPriceValue)}.`,
-      );
+      setTradeFormError(null);
     },
-    onError: (error) => pushToast("error", extractErrorMessage(error)),
   });
 
   const closePositionMutation = useMutation({
@@ -448,7 +465,7 @@ export function App() {
         toBigIntValue(selectedTournament.tournament_id),
       );
     },
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       setStopLossPrice("");
       setTakeProfitPrice("");
 
@@ -481,14 +498,7 @@ export function App() {
         );
         setTradeHistory(nextHistory);
       }
-
-      await refreshArena();
-      pushToast(
-        "success",
-        `Position closed with ${formatSigned(result.realized_pnl)} PnL at ${formatChainUsdPrice(currentPriceValue)}.`,
-      );
     },
-    onError: (error) => pushToast("error", extractErrorMessage(error)),
   });
 
   const claimRewardMutation = useMutation({
@@ -504,11 +514,6 @@ export function App() {
         toBigIntValue(selectedTournament.tournament_id),
       );
     },
-    onSuccess: async (value) => {
-      await refreshArena();
-      pushToast("success", `Reward claimed: ${formatPlanck(value)}.`);
-    },
-    onError: (error) => pushToast("error", extractErrorMessage(error)),
   });
 
   const handleCreateTournament = (event: FormEvent<HTMLFormElement>) => {
@@ -518,7 +523,6 @@ export function App() {
 
     try {
       if (!hasProgramId) throw new Error("Paste a deployed program ID before using admin actions.");
-      if (!ensureWriteAccess("create_tournament", createForm, { requireAdmin: true })) return;
 
       const name = createForm.name.trim();
       if (!name) throw new Error("Tournament name is required.");
@@ -547,7 +551,15 @@ export function App() {
         throw new Error("Max participants must be greater than zero.");
       }
 
-      void runGuardedTransaction(txInFlightRef, () => createTournamentMutation.mutateAsync(input));
+      void runUserTx(
+        "Create Tournament",
+        () => createTournamentMutation.mutateAsync(input),
+        {
+          requireAdmin: true,
+          retryMessage: "Wallet connected. Click Create Tournament again to continue.",
+          successMessage: "Tournament created.",
+        },
+      );
     } catch (error) {
       setCreateFormError(extractErrorMessage(error));
     }
@@ -559,7 +571,6 @@ export function App() {
 
     try {
       if (!selectedTournament) throw new Error("Pick a tournament first.");
-      if (!txAccount) throw new Error(walletActionReason);
       if (!participant) {
         throw new Error("Join the selected tournament before opening a position.");
       }
@@ -573,24 +584,18 @@ export function App() {
         stopLossInput: stopLossPrice,
         takeProfitInput: takeProfitPrice,
       });
-      if (
-        !ensureWriteAccess("open_position", {
-          tournamentId: selectedTournament.tournament_id,
-          direction: tradeDirection,
-          size: tradeSize,
-          stopLossPrice: parsedRiskControls.stopLossPrice,
-          takeProfitPrice: parsedRiskControls.takeProfitPrice,
-        })
-      ) {
-        return;
-      }
 
-      void runGuardedTransaction(txInFlightRef, () =>
-        openPositionMutation.mutateAsync({
+      void runUserTx(
+        tradeDirection === "Long" ? "Open Long" : "Open Short",
+        () => openPositionMutation.mutateAsync({
           direction: tradeDirection,
           size: parseUnsignedInteger(tradeSize, "Position size"),
           riskControls: parsedRiskControls,
         }),
+        {
+          retryMessage: "Wallet connected. Click the trade button again to continue.",
+          successMessage: `${tradeDirection} position opened at ${formatChainUsdPrice(currentPriceValue)}.`,
+        },
       );
     } catch (error) {
       setTradeFormError(extractErrorMessage(error));
@@ -616,8 +621,8 @@ export function App() {
       ? streamedLivePrice
       : livePriceQuery.data ?? streamedLivePrice ?? null;
   const currentPriceValue = currentPriceQuery.data ? toBigIntValue(currentPriceQuery.data) : 0n;
-  const livePriceValue = activeLivePrice ? toChainPriceValue(activeLivePrice.price) : 0n;
-  const currentTournamentPriceNumber = currentPriceValue > 0n ? fromChainPriceValue(currentPriceValue) : 0;
+  const livePriceValue = activeLivePrice ? toContractPrice(activeLivePrice.price) : 0n;
+  const currentTournamentPriceNumber = currentPriceValue > 0n ? fromContractPrice(currentPriceValue) : 0;
   const livePriceNumber = activeLivePrice?.price ?? 0;
   const livePriceChange24h = activeLivePrice?.change24h ?? 0;
   const usingFallbackPriceSource = activeLivePrice?.source === "fallback";
@@ -701,18 +706,18 @@ export function App() {
   const tournamentPriceHelperText =
     selectedTournamentState === "Live"
       ? priceSyncPaused
-        ? "Price syncing is catching up with Binance. New trades are paused until contract price drift falls below 5%."
+        ? "Tournament price is syncing. Please wait."
         : "Live price updates automatically. On-chain price is updated by keeper/admin."
       : "Tournament price is fixed once the tournament closes.";
   const marketSourceNotice = priceSyncPaused
-    ? "Price syncing... trading temporarily paused"
+    ? "Tournament price is syncing. Please wait."
     : syncWarning ?? priceSourceNotice;
   const livePreviewMetrics =
     participant?.position?.is_open && livePriceNumber > 0
       ? calculatePnl({
           direction: participant.position.direction,
           size: Number(toBigIntValue(participant.position.size)),
-          entryPrice: fromChainPriceValue(participant.position.entry_price),
+          entryPrice: fromContractPrice(participant.position.entry_price),
           currentPrice: livePriceNumber,
         })
       : { pnl: 0, returnPct: 0 };
@@ -720,7 +725,7 @@ export function App() {
     ? getTradingDisabledReason(selectedTournament, participant, now)
     : null;
   const tradeDisabledReason = priceSyncPaused
-    ? "Price syncing... trading temporarily paused"
+    ? "Tournament price is syncing. Please wait."
     : tradeDisabledReasonBase;
 
   useEffect(() => {
@@ -815,69 +820,92 @@ export function App() {
   };
 
   const handleWalletSourceConnect = useCallback(
-    async (source: string) => {
+    async (source: string): Promise<boolean> => {
       setWalletPickerOpen(false);
       try {
         await connectWallet(source);
+        return true;
       } catch (error) {
         pushToast("error", extractErrorMessage(error));
+        return false;
       }
     },
     [connectWallet, pushToast],
   );
 
-  const handleConnectWallet = useCallback(async () => {
-    if (isWalletConnectBusy) return;
+  const handleConnectWallet = useCallback(async (): Promise<"connected" | "picker" | "failed"> => {
+    if (isWalletConnectBusy) return "failed";
 
     try {
       const available = wallets.length ? wallets : await connect();
       if (available.length === 0) {
         pushToast("error", "No Vara-compatible wallet extension found.");
         setWalletPickerOpen(false);
-        return;
+        return "failed";
       }
 
       if (available.length === 1) {
-        await handleWalletSourceConnect(available[0]!);
-        return;
+        return (await handleWalletSourceConnect(available[0]!))
+          ? "connected"
+          : "failed";
       }
 
       setWalletPickerOpen((current) => !current);
+      return "picker";
     } catch (error) {
       pushToast("error", extractErrorMessage(error));
+      return "failed";
     }
   }, [connect, handleWalletSourceConnect, isWalletConnectBusy, pushToast, wallets]);
 
-  const ensureWriteAccess = useCallback(
-    (
+  const runUserTx = useCallback(
+    async <T,>(
       actionName: string,
-      payload?: unknown,
-      options?: { requireAdmin?: boolean },
-    ) => {
-      console.log("[tx] action", actionName);
-      console.log("[tx] account", account?.address ?? null);
-      console.log("[tx] payload", payload ?? null);
+      fn: () => Promise<T>,
+      options?: {
+        requireAdmin?: boolean;
+        retryMessage?: string;
+        successMessage?: string;
+      },
+    ): Promise<T | undefined> => {
+      if (txInFlightRef.current) return undefined;
 
       if (!account) {
-        pushToast("error", "Connect wallet first");
-        void handleConnectWallet();
-        return false;
+        const result = await handleConnectWallet();
+        if (result === "connected") {
+          pushToast(
+            "info",
+            options?.retryMessage ?? `Wallet connected. Click ${actionName} again to continue.`,
+          );
+        }
+        return undefined;
       }
 
       if (!signer) {
         pushToast("error", "Wallet signer not ready.");
-        void handleConnectWallet();
-        return false;
+        return undefined;
       }
 
       if (options?.requireAdmin && !isAdmin) {
         pushToast("error", "Admin wallet required.");
-        return false;
+        return undefined;
       }
 
-      return true;
+      txInFlightRef.current = true;
+      try {
+        pushToast("info", `${actionName} requires wallet approval`);
+        const result = await fn();
+        pushToast("success", options?.successMessage ?? `${actionName} completed.`);
+        await refreshArena();
+        return result;
+      } catch (error) {
+        pushToast("error", getFriendlyTxError(error));
+        throw error;
+      } finally {
+        txInFlightRef.current = false;
+      }
     },
-    [account, handleConnectWallet, isAdmin, pushToast, signer],
+    [account, handleConnectWallet, isAdmin, pushToast, refreshArena, signer],
   );
 
   const handleJoinTournament = useCallback(
@@ -887,13 +915,17 @@ export function App() {
         pushToast("error", reason);
         return;
       }
-      if (!ensureWriteAccess("join_tournament", { tournamentId: tournament.tournament_id })) {
-        return;
-      }
       joinMutation.reset();
-      void runGuardedTransaction(txInFlightRef, () => joinMutation.mutateAsync(tournament));
+      void runUserTx(
+        "Join Tournament",
+        () => joinMutation.mutateAsync(tournament),
+        {
+          retryMessage: "Wallet connected. Click Join again to confirm your entry.",
+          successMessage: `Joined tournament. ${formatPlanck(tournament.entry_fee)} entry fee submitted.`,
+        },
+      );
     },
-    [ensureWriteAccess, joinMutation, now, pushToast],
+    [joinMutation, now, pushToast, runUserTx],
   );
 
   const banner = resolveBanner({
@@ -924,15 +956,71 @@ export function App() {
       pushToast("error", "Select a tournament first.");
       return;
     }
-    if (!ensureWriteAccess("keeper_tick", { tournamentId: selectedTournament.tournament_id, price: livePriceValue.toString() }, { requireAdmin: true })) {
-      return;
-    }
     if (livePriceValue <= 0n) {
       setSyncWarning("Live BTC price is not ready.");
       return;
     }
     updatePriceMutation.reset();
-    void runGuardedTransaction(txInFlightRef, () => updatePriceMutation.mutateAsync(livePriceValue));
+    void runUserTx(
+      "Sync Price & Process",
+      () => updatePriceMutation.mutateAsync(livePriceValue),
+      {
+        requireAdmin: true,
+        retryMessage: "Wallet connected. Click Sync Price & Process again to continue.",
+        successMessage: "Sync Price & Process completed.",
+      },
+    );
+  }
+
+  function handleProcessTournament() {
+    if (!selectedTournament) {
+      pushToast("error", "Select a tournament first.");
+      return;
+    }
+    processTournamentMutation.reset();
+    void runUserTx(
+      "Process Tournament",
+      () => processTournamentMutation.mutateAsync(),
+      {
+        requireAdmin: true,
+        retryMessage: "Wallet connected. Click Process Tournament again to continue.",
+        successMessage: "Tournament processing completed.",
+      },
+    );
+  }
+
+  function handleEndTournament() {
+    if (!selectedTournament) {
+      pushToast("error", "Select a tournament first.");
+      return;
+    }
+    endTournamentMutation.reset();
+    void runUserTx(
+      "End Tournament",
+      () => endTournamentMutation.mutateAsync(),
+      {
+        requireAdmin: true,
+        retryMessage: "Wallet connected. Click End Tournament again to continue.",
+        successMessage: "Tournament ended.",
+      },
+    );
+  }
+
+  function handleSettleTournament() {
+    if (!selectedTournament) {
+      pushToast("error", "Select a tournament first.");
+      return;
+    }
+    settleTournamentMutation.reset();
+    void runUserTx(
+      "Settle Tournament",
+      () => settleTournamentMutation.mutateAsync(),
+      {
+        requireAdmin: true,
+        retryMessage: "Wallet connected. Click Settle Tournament again to continue.",
+        successMessage: "Tournament settled.",
+      },
+    );
   }
 
   function handleClosePosition() {
@@ -940,11 +1028,15 @@ export function App() {
       pushToast("error", "Select a tournament first.");
       return;
     }
-    if (!ensureWriteAccess("close_position", { tournamentId: tradeViewTournament.tournament_id })) {
-      return;
-    }
     closePositionMutation.reset();
-    void runGuardedTransaction(txInFlightRef, () => closePositionMutation.mutateAsync());
+    void runUserTx(
+      "Close Position",
+      () => closePositionMutation.mutateAsync(),
+      {
+        retryMessage: "Wallet connected. Click Close Position again to continue.",
+        successMessage: `Position closed with ${formatSignedUsd(Number(toBigIntValue(participant?.realized_pnl ?? 0n)))} PnL.`,
+      },
+    );
   }
 
   const pageTitle =
@@ -1007,8 +1099,8 @@ export function App() {
       rank: entry.rank,
       address: shortAddress(entry.participant),
       returnPct: formatPercentBps(entry.return_percentage_bps),
-      pnl: formatSigned(entry.realized_pnl),
-      vault: toBigIntValue(entry.final_value).toLocaleString(),
+      pnl: formatSignedUsd(Number(toBigIntValue(entry.realized_pnl))),
+      vault: formatUsd(Number(toBigIntValue(entry.final_value))),
       highlight: sameAddress(entry.participant, account?.address ?? null),
       positive: returnBps > 0n,
       negative: returnBps < 0n,
@@ -1150,11 +1242,15 @@ export function App() {
       pushToast("error", "No claimable reward available.");
       return;
     }
-    if (!ensureWriteAccess("claim_reward", { tournamentId: selectedTournament.tournament_id })) {
-      return;
-    }
     claimRewardMutation.reset();
-    void runGuardedTransaction(txInFlightRef, () => claimRewardMutation.mutateAsync());
+    void runUserTx(
+      "Claim Reward",
+      () => claimRewardMutation.mutateAsync(),
+      {
+        retryMessage: "Wallet connected. Click Claim Reward again to continue.",
+        successMessage: `Reward claimed: ${formatPlanck(claimableRewardValue)}.`,
+      },
+    );
   }
   const rewardStatus = getRewardStatus({
     participant,
@@ -1235,8 +1331,8 @@ export function App() {
           id: `${selectedTournament.tournament_id}-${participant.position.direction}`,
           tournamentName: selectedTournament.name,
           side: participant.position.direction === "Long" ? "long" : "short",
-          entryPrice: fromChainPriceValue(participant.position.entry_price),
-          currentPrice: fromChainPriceValue(currentPriceValue),
+          entryPrice: fromContractPrice(participant.position.entry_price),
+          currentPrice: fromContractPrice(currentPriceValue),
           pnlPercent: Number(participant.return_percentage_bps) / 100,
           endsAt: describeCountdown(selectedTournament.start_time, selectedTournament.end_time, now),
           status: "open",
@@ -1315,12 +1411,12 @@ export function App() {
     ? [
         {
           label: "Current Vault",
-          value: toBigIntValue(participant.final_value).toLocaleString(),
+          value: formatUsd(Number(toBigIntValue(participant.final_value))),
           meta: "Tournament score",
         },
         {
           label: "Total Profit / Loss",
-          value: formatSigned(participant.realized_pnl),
+          value: formatSignedUsd(Number(toBigIntValue(participant.realized_pnl))),
           tone:
             toBigIntValue(participant.realized_pnl) > 0n
               ? ("positive" as const)
@@ -1371,10 +1467,12 @@ export function App() {
     const state = getTournamentLifecycleState(tournament, now);
     return state === "Live" || state === "Upcoming";
   }).length;
-  const heroPrimaryLabel = hasJoinedTournament || hasOpenPosition ? "Continue Trading" : "View Tournaments";
-  const heroPrimaryAction = hasJoinedTournament || hasOpenPosition
-    ? () => setRoute(tradeRoute)
-    : () => setRoute({ page: "tournaments" });
+  const heroPrimaryLabel = account ? "View Tournaments" : "Connect Wallet";
+  const heroPrimaryAction = account
+    ? () => setRoute({ page: "tournaments" })
+    : () => {
+        void handleConnectWallet();
+      };
   const heroStats = [
     {
       label: "Active tournaments",
@@ -1446,6 +1544,9 @@ export function App() {
     })
     .map((tournament) => {
       const state = getTournamentLifecycleState(tournament, now);
+      const isSelectedTournament = selectedTournamentId === tournament.tournament_id;
+      const isJoinedTournament = isSelectedTournament && Boolean(participant);
+      const joinReason = getJoinReason(tournament, now);
       return {
         tournament,
         statusLabel: mapStatusLabel(state),
@@ -1455,16 +1556,24 @@ export function App() {
         players: `${tournament.participant_count}/${tournament.max_participants}`,
         timeLeft: describeCountdown(tournament.start_time, tournament.end_time, now),
         endsAt: formatTimestamp(tournament.end_time),
-        primaryLabel: state === "Live" ? "Trade" : "View Tournament",
-        onPrimary: () => openTournament(tournament.tournament_id),
-        secondaryLabel: state === "Upcoming" ? "Join Arena" : undefined,
+        primaryLabel:
+          state === "Upcoming"
+            ? "View"
+            : state === "Live"
+              ? isJoinedTournament
+                ? "Trade"
+                : "View"
+              : "View",
+        onPrimary:
+          () => openTournament(tournament.tournament_id),
+        secondaryLabel: state === "Upcoming" ? "Join" : undefined,
         onSecondary: state === "Upcoming" ? () => handleJoinTournament(tournament) : undefined,
         secondaryDisabled:
           state === "Upcoming"
-            ? Boolean(getJoinReason(tournament, now)) || joinMutation.isPending
+            ? Boolean(joinReason) || joinMutation.isPending
             : undefined,
-        secondaryTitle: state === "Upcoming" ? getJoinReason(tournament, now) ?? undefined : undefined,
-        active: selectedTournamentId === tournament.tournament_id,
+        secondaryTitle: state === "Upcoming" ? joinReason ?? undefined : undefined,
+        active: isSelectedTournament,
       };
     });
   const pastHomeTournaments = tournaments
@@ -1486,7 +1595,7 @@ export function App() {
         players: `${tournament.participant_count}/${tournament.max_participants}`,
         timeLeft: describeCountdown(tournament.start_time, tournament.end_time, now),
         endsAt: formatTimestamp(tournament.end_time),
-        primaryLabel: state === "Claim Open" && winnerForAccount ? "Claim Rewards" : "View Results",
+        primaryLabel: state === "Claim Open" && winnerForAccount ? "Claim Reward" : "View Results",
         onPrimary: () =>
           state === "Claim Open" && winnerForAccount
             ? setRoute({ page: "vault" })
@@ -1657,7 +1766,7 @@ export function App() {
               userStatusJoined={participant && homeTournament ? homeTournament.name : homeTournament ? "Not joined yet" : "No arena selected"}
               userStatusRank={participantLeaderboardEntry ? `#${participantLeaderboardEntry.rank}` : participant ? "Waiting for first rank" : "—"}
               userStatusReturn={participant ? formatPercentBps(participant.return_percentage_bps) : "—"}
-              userStatusVaultValue={participant ? toBigIntValue(participant.final_value).toLocaleString() : "—"}
+              userStatusVaultValue={participant ? formatUsd(Number(toBigIntValue(participant.final_value))) : "—"}
               userStatusHelper={userStatusHelper}
               userStatusActionLabel={userStatusActionLabel}
               onUserStatusAction={userStatusAction}
@@ -1827,13 +1936,28 @@ export function App() {
                     <Notice tone="info">Loading your tournament state...</Notice>
                   ) : null}
                   {participantNotFound && account ? (
-                    <Notice tone="warning">Join this tournament to unlock your trading terminal.</Notice>
+                    <Notice tone="warning">
+                      {selectedTournamentState === "Upcoming"
+                        ? "Join tournament to start trading."
+                        : "Joining closes once the tournament starts."}
+                    </Notice>
                   ) : null}
                   {participantQuery.error && !participantNotFound ? (
                     <Notice tone="error">{extractErrorMessage(participantQuery.error)}</Notice>
                   ) : null}
                   {!account ? (
-                    <Notice tone="warning">Connect a wallet to view your vault and start trading.</Notice>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Notice tone="warning">Connect wallet to trade.</Notice>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          void handleConnectWallet();
+                        }}
+                        disabled={isWalletConnectBusy}
+                      >
+                        {isWalletConnectBusy ? "Connecting..." : "Connect Wallet"}
+                      </Button>
+                    </div>
                   ) : null}
 
                   {renderMutationNotice(joinMutation, {
@@ -1849,7 +1973,7 @@ export function App() {
                     success: "Position closed.",
                   })}
 
-                  {!participant ? (
+                  {!participant && selectedTournamentState === "Upcoming" ? (
                     <div className="flex">
                       <Button
                         variant="primary"
@@ -1928,7 +2052,7 @@ export function App() {
                         onDirectionChange={setTradeDirection}
                         size={tradeSize}
                         onSizeChange={setTradeSize}
-                        availableBalance={participant ? toBigIntValue(participant.final_value).toLocaleString() : "Join to unlock"}
+                        availableBalance={participant ? formatUsd(Number(toBigIntValue(participant.final_value))) : "Join to unlock"}
                         entryPrice={tournamentPriceLabel}
                         currentPrice={livePriceLabel === "BTC --" ? "$0.00" : livePriceLabel}
                         estimatedPnl={{
@@ -1955,7 +2079,7 @@ export function App() {
                           participant?.position?.is_open
                             ? {
                                 direction: participant.position.direction,
-                                size: `${toBigIntValue(participant.position.size).toLocaleString()} USDT`,
+                                size: formatUsd(Number(toBigIntValue(participant.position.size))),
                                 entryPrice: formatChainUsdPrice(participant.position.entry_price),
                               }
                             : null
@@ -1975,7 +2099,7 @@ export function App() {
                           <PositionCard
                             hasPosition={Boolean(participant?.position?.is_open)}
                             direction={participant?.position?.direction ?? null}
-                            size={participant?.position ? toBigIntValue(participant.position.size).toLocaleString() : null}
+                            size={participant?.position ? formatUsd(Number(toBigIntValue(participant.position.size))) : null}
                             entryPrice={
                               participant?.position
                                 ? formatChainUsdPrice(participant.position.entry_price)
@@ -2304,7 +2428,10 @@ export function App() {
                         <InfoPanel title="Settlement State" value={selectedTournamentStatusLabel} />
                         <InfoPanel title="Claim Status" value={rewardStatus} />
                         <InfoPanel title="Prize Pool" value={formatPlanck(selectedTournament.prize_pool)} />
-                        <InfoPanel title="Your Result" value={participant ? formatSigned(participant.realized_pnl) : "—"} />
+                        <InfoPanel
+                          title="Your Result"
+                          value={participant ? formatSignedUsd(Number(toBigIntValue(participant.realized_pnl))) : "—"}
+                        />
                       </div>
                     </div>
                   </div>
@@ -2626,8 +2753,42 @@ export function App() {
                               : "Not synced yet"
                           }
                         />
+                        <InfoPanel
+                          title="Price mismatch"
+                          value={
+                            currentTournamentPriceNumber > 0 && livePriceNumber > 0
+                              ? `${(priceDriftRatio * 100).toFixed(2)}%`
+                              : "Waiting for prices"
+                          }
+                          tone={priceSyncPaused ? "negative" : "default"}
+                        />
+                        <InfoPanel
+                          title="Keeper note"
+                          value="Tournament price is updated by keeper/admin."
+                        />
                       </div>
+                      {priceSyncPaused ? (
+                        <p className="mt-3 text-sm text-amber-300">
+                          Tournament price is syncing. Please wait.
+                        </p>
+                      ) : null}
                       {syncWarning ? <p className="mt-3 text-sm text-amber-300">{syncWarning}</p> : null}
+                      {renderMutationNotice(updatePriceMutation, {
+                        pending: "Waiting for wallet approval and syncing price...",
+                        success: "Sync Price & Process completed.",
+                      })}
+                      {renderMutationNotice(processTournamentMutation, {
+                        pending: "Processing tournament...",
+                        success: "Tournament processing completed.",
+                      })}
+                      {renderMutationNotice(endTournamentMutation, {
+                        pending: "Ending tournament...",
+                        success: "Tournament ended.",
+                      })}
+                      {renderMutationNotice(settleTournamentMutation, {
+                        pending: "Settling tournament...",
+                        success: "Tournament settled.",
+                      })}
                       {isAdmin ? (
                         <div className="mt-4 flex flex-wrap gap-2">
                           <Button
@@ -2641,10 +2802,31 @@ export function App() {
                           >
                             {updatePriceMutation.isPending ? "Syncing..." : "Sync Price & Process"}
                           </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={handleProcessTournament}
+                            disabled={!selectedTournament || processTournamentMutation.isPending}
+                          >
+                            {processTournamentMutation.isPending ? "Processing..." : "Process Tournament"}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={handleEndTournament}
+                            disabled={!selectedTournament || endTournamentMutation.isPending}
+                          >
+                            {endTournamentMutation.isPending ? "Ending..." : "End Tournament"}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={handleSettleTournament}
+                            disabled={!selectedTournament || settleTournamentMutation.isPending}
+                          >
+                            {settleTournamentMutation.isPending ? "Settling..." : "Settle Fallback"}
+                          </Button>
                         </div>
                       ) : (
                         <p className="mt-3 text-sm text-[var(--muted)]">
-                          Contract price changes only when the keeper/admin syncs Binance price on-chain.
+                          Tournament price is updated by keeper/admin.
                         </p>
                       )}
                     </ArenaCard>
@@ -2980,7 +3162,7 @@ function TradeHistoryPanel({
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold text-[var(--text)]">
-                  {item.pnl ? formatSigned(item.pnl) : `${toBigIntValue(item.size).toLocaleString()} size`}
+                  {item.pnl ? formatSignedUsd(Number(toBigIntValue(item.pnl))) : `${formatUsd(Number(toBigIntValue(item.size)))} size`}
                 </p>
                 <p className="text-xs text-[var(--subtle)]">
                   {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(item.timestamp)}
@@ -3258,19 +3440,6 @@ function getTradingDisabledReason(
   return null;
 }
 
-function getWalletActionReason(walletStatus: string): string {
-  switch (walletStatus) {
-    case "loading":
-      return "Wallets are still loading.";
-    case "unavailable":
-      return "No Vara-compatible wallet extension found.";
-    case "connecting":
-      return "Wallet is still connecting.";
-    default:
-      return "Connect a wallet first.";
-  }
-}
-
 function extractErrorMessage(error: unknown): string {
   const message = rawErrorMessage(error);
   return mapArenaErrorMessage(message);
@@ -3330,7 +3499,7 @@ function calculatePnl({
 function formatSignedUsd(value: number): string {
   if (!Number.isFinite(value)) return "$0.00";
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
-  return `${sign}${formatUsdPrice(Math.abs(value))}`;
+  return `${sign}${formatUsd(Math.abs(value))}`;
 }
 
 function formatSignedPercent(value: number): string {
@@ -3395,8 +3564,8 @@ function parseRiskControls({
   }
 
   return {
-    stopLossPrice: stopLossPrice != null ? toChainPriceValue(stopLossPrice) : null,
-    takeProfitPrice: takeProfitPrice != null ? toChainPriceValue(takeProfitPrice) : null,
+    stopLossPrice: stopLossPrice != null ? toContractPrice(stopLossPrice) : null,
+    takeProfitPrice: takeProfitPrice != null ? toContractPrice(takeProfitPrice) : null,
   };
 }
 
@@ -3404,19 +3573,6 @@ function formatCloseReason(reason: CloseReason): string {
   if (reason === "StopLoss") return "Stop Loss";
   if (reason === "TakeProfit") return "Take Profit";
   return "Manual";
-}
-
-async function runGuardedTransaction<T>(
-  txInFlightRef: { current: boolean },
-  execute: () => Promise<T>,
-): Promise<T | undefined> {
-  if (txInFlightRef.current) return undefined;
-  txInFlightRef.current = true;
-  try {
-    return await execute();
-  } finally {
-    txInFlightRef.current = false;
-  }
 }
 
 function calculateSyntheticPnl(
@@ -3466,6 +3622,30 @@ function getPriceSyncStatus({
       : "Tournament price synced";
   }
   return "Waiting for next tournament price sync";
+}
+
+function getFriendlyTxError(error: unknown): string {
+  const message = extractErrorMessage(error);
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("rejected")
+    || normalized.includes("cancelled")
+    || normalized.includes("canceled")
+    || normalized.includes("denied")
+  ) {
+    return "Transaction was cancelled in your wallet.";
+  }
+
+  if (normalized.includes("signer not ready")) {
+    return "Wallet signer not ready. Reconnect your wallet and try again.";
+  }
+
+  if (normalized.includes("connect a wallet")) {
+    return "Connect a wallet first.";
+  }
+
+  return message;
 }
 
 function formatRelativeSeconds(timestamp: number, now: number): string {

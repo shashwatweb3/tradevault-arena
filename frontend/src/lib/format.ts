@@ -75,36 +75,52 @@ export function formatPercentBps(value: BigNumberish): string {
   return `${negative ? "-" : ""}${whole.toLocaleString()}.${fraction}%`;
 }
 
-export function formatUsdPrice(
-  value: number | bigint | null | undefined,
-  fractionDigits = 2,
+export function formatUsd(
+  value: number | bigint | string | null | undefined,
+  decimals = 2,
 ): string {
-  if (value === null || value === undefined) return "$0.00";
-
   const normalized =
-    typeof value === "bigint" ? Number(value) : typeof value === "number" ? value : Number(value);
+    typeof value === "bigint"
+      ? Number(value) / 100
+      : typeof value === "string"
+        ? Number(value)
+        : value ?? 0;
+
   if (!Number.isFinite(normalized)) return "$0.00";
 
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  }).format(normalized);
+  return `$${normalized.toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
 }
 
-export function toChainPriceValue(value: number | null | undefined): bigint {
+export function formatUsdPrice(
+  value: number | bigint | string | null | undefined,
+  fractionDigits = 2,
+): string {
+  return formatUsd(value, fractionDigits);
+}
+
+export function toContractPrice(value: number | null | undefined): bigint {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) return 0n;
-  return BigInt(Math.floor(value * Number(CHAIN_PRICE_SCALE)));
+  return BigInt(Math.round(value * Number(CHAIN_PRICE_SCALE)));
 }
 
-export function fromChainPriceValue(value: BigNumberish): number {
+export function fromContractPrice(value: BigNumberish): number {
   const raw = toBigIntValue(value);
   return Number(raw) / Number(CHAIN_PRICE_SCALE);
 }
 
+export function toChainPriceValue(value: number | null | undefined): bigint {
+  return toContractPrice(value);
+}
+
+export function fromChainPriceValue(value: BigNumberish): number {
+  return fromContractPrice(value);
+}
+
 export function formatChainUsdPrice(value: BigNumberish, fractionDigits = CHAIN_PRICE_DECIMALS): string {
-  return formatUsdPrice(fromChainPriceValue(value), fractionDigits);
+  return formatUsd(fromContractPrice(value), fractionDigits);
 }
 
 export function normalizeTimestampMs(value: BigNumberish): number {

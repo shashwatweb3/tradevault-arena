@@ -7,7 +7,7 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { formatChainUsdPrice, formatUsdPrice, fromChainPriceValue } from "@/lib/format";
+import { formatChainUsdPrice, formatUsd, fromContractPrice } from "@/lib/format";
 import type { LivePricePoint } from "@/lib/live-price";
 
 type LivePriceChartProps = {
@@ -182,7 +182,7 @@ export function LivePriceChart({
 
     if (tournamentPrice && tournamentPrice > 0n) {
       tournamentLineRef.current = series.createPriceLine({
-        price: fromChainPriceValue(tournamentPrice),
+        price: fromContractPrice(tournamentPrice),
         color: "#8B5CF6",
         lineWidth: 2,
         lineStyle: 2,
@@ -193,7 +193,7 @@ export function LivePriceChart({
 
     if (entryPrice && entryPrice > 0n) {
       entryLineRef.current = series.createPriceLine({
-        price: fromChainPriceValue(entryPrice),
+        price: fromContractPrice(entryPrice),
         color: "#22C55E",
         lineWidth: 1,
         lineStyle: 2,
@@ -223,7 +223,7 @@ export function LivePriceChart({
             Live BTC/USD Chart
           </p>
           <p className="mt-2 text-[18px] font-semibold text-[var(--text)]">
-            {formatUsdPrice(latest.price)}
+            {formatUsd(latest.price)}
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2 text-right text-xs sm:text-sm">
@@ -236,8 +236,8 @@ export function LivePriceChart({
           ) : null}
         </div>
         <div className="grid grid-cols-3 gap-2 text-right text-xs sm:text-sm">
-          <ChartStat label="High" value={formatUsdPrice(high)} />
-          <ChartStat label="Low" value={formatUsdPrice(low)} />
+          <ChartStat label="High" value={formatUsd(high)} />
+          <ChartStat label="Low" value={formatUsd(low)} />
           <ChartStat
             label="Updated"
             value={new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(latest.timestamp)}
