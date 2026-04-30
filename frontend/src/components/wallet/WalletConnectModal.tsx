@@ -152,6 +152,17 @@ export function WalletConnectModal({
     }
   };
 
+  const completeWalletConnect = useCallback(
+    async (enabledWallet: EnabledWallet, address?: string) => {
+      const connected = await onConnect(enabledWallet, address);
+      if (connected) {
+        onClose();
+      }
+      return connected;
+    },
+    [onClose, onConnect],
+  );
+
   const handleEnabledWallet = async (wallet: WalletOption, enabled: EnabledWallet) => {
     if (enabled.accounts.length === 0) {
       onErrorRef.current(`No accounts found in ${wallet.name}. Open the extension, unlock it, and select an account.`);
@@ -161,7 +172,7 @@ export function WalletConnectModal({
     if (enabled.accounts.length === 1) {
       const onlyAccount = enabled.accounts[0];
       if (!onlyAccount) return;
-      await handleAccountSelect(wallet, onlyAccount);
+      await completeWalletConnect(enabled, onlyAccount.address);
       return;
     }
 
@@ -178,10 +189,7 @@ export function WalletConnectModal({
     connectInFlightRef.current = true;
     setSubmittingKey(connectKey);
     try {
-      const connected = await onConnect(selectedEnabledWallet, account.address);
-      if (connected) {
-        onClose();
-      }
+      await completeWalletConnect(selectedEnabledWallet, account.address);
     } finally {
       connectInFlightRef.current = false;
       setSubmittingKey(null);
