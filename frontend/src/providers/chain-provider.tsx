@@ -127,7 +127,7 @@ type ChainContextValue = {
   /** Balance in VARA (human-readable, 12 decimals) */
   balance: string | null;
   connect: () => Promise<string[]>;
-  connectWallet: (source: string, preferredAddress?: string | null) => Promise<void>;
+  connectWallet: (source: string | EnabledWallet, preferredAddress?: string | null) => Promise<void>;
   selectAccount: (account: WalletAccount) => void;
   disconnect: () => void;
 };
@@ -286,11 +286,15 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
   );
 
   const connectWallet = useCallback(
-    async (source: string, preferredAddress?: string | null) => {
+    async (sourceOrWallet: string | EnabledWallet, preferredAddress?: string | null) => {
       setWalletStatus("connecting");
       setWalletError(null);
       try {
-        const enabled = await enableWallet(source);
+        const enabled =
+          typeof sourceOrWallet === "string"
+            ? await enableWallet(sourceOrWallet)
+            : sourceOrWallet;
+        const source = enabled.source;
         if (enabled.accounts.length === 0) {
           const message = `No account selected in "${source}". Open the extension, select an account, and try again.`;
           setWalletError(message);
@@ -303,6 +307,10 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
         );
         applyWallet(enabled, preferredAddress ?? storedAddr);
       } catch (err) {
+        const source =
+          typeof sourceOrWallet === "string"
+            ? sourceOrWallet
+            : sourceOrWallet.source;
         const message = normalizeWalletErrorMessage(err, source);
         setWalletError(message);
         setWalletStatus("disconnected");

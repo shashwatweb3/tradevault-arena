@@ -7,8 +7,6 @@ import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 
 const APP_NAME = "TradeVault Arena";
 const VARA_SS58_PREFIX = 137;
-const INJECTED_POLL_MS = 200;
-const INJECTED_POLL_ATTEMPTS = 8;
 
 type InjectedAccountLike = {
   address: string;
@@ -96,10 +94,6 @@ function injectedRegistry(): Record<string, InjectedWindowProvider> {
   return window.injectedWeb3 ?? {};
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 function normalizeWalletId(value: string): string {
   return value.trim().toLowerCase().replace(/[\s_.]+/g, "-");
 }
@@ -151,16 +145,6 @@ export function getInjectedWallets(): InjectedWalletInfo[] {
     name: injected[key]?.name || key,
     version: injected[key]?.version,
   }));
-}
-
-async function waitForInjectedWallets(): Promise<InjectedWalletInfo[]> {
-  for (let attempt = 0; attempt < INJECTED_POLL_ATTEMPTS; attempt += 1) {
-    const wallets = getInjectedWallets();
-    if (wallets.length > 0) return wallets;
-    await sleep(INJECTED_POLL_MS);
-  }
-
-  return getInjectedWallets();
 }
 
 export function normalizeWalletErrorMessage(error: unknown, source?: string): string {
@@ -224,37 +208,30 @@ function getSupportedInjectedWalletMap(injectedWallets: InjectedWalletInfo[]) {
   return supported;
 }
 
-export async function detectWalletOptions(): Promise<WalletOption[]> {
-  const injectedWallets = await waitForInjectedWallets();
+export function getWalletOptionsFromInjected(
+  injectedWallets: InjectedWalletInfo[] = getInjectedWallets(),
+): WalletOption[] {
   const supportedInjectedWallets = getSupportedInjectedWalletMap(injectedWallets);
-  let accounts: WalletAccount[] = [];
-
-  try {
-    accounts = (await web3Accounts()).map((account) =>
-      normalizeAccount(account as InjectedAccountLike),
-    );
-  } catch {
-    accounts = [];
-  }
 
   return SUPPORTED_WALLETS.map((wallet) => {
-    const walletAccounts = accounts.filter((account) => account.meta.source === wallet.source);
-    const installed =
-      supportedInjectedWallets.has(wallet.source)
-      || walletAccounts.length > 0;
+    const installed = supportedInjectedWallets.has(wallet.source);
 
     return {
       ...wallet,
-      accountCount: walletAccounts.length,
-      accounts: walletAccounts,
+      accountCount: 0,
+      accounts: [],
       installed,
       status: installed ? "enabled" : "disabled",
     };
   });
 }
 
+export async function detectWalletOptions(): Promise<WalletOption[]> {
+  return getWalletOptionsFromInjected();
+}
+
 export async function listWallets(): Promise<string[]> {
-  const wallets = await detectWalletOptions();
+  const wallets = getWalletOptionsFromInjected();
   return wallets
     .filter((wallet) => wallet.installed)
     .map((wallet) => wallet.source);

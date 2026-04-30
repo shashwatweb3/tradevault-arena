@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { shortAddress } from "@/lib/format";
 import {
-  detectWalletOptions,
   enableWallet,
+  getInjectedWallets,
+  getWalletOptionsFromInjected,
   normalizeWalletErrorMessage,
   type WalletAccount,
   type EnabledWallet,
@@ -14,11 +15,17 @@ import {
 type WalletConnectModalProps = {
   open: boolean;
   onClose: () => void;
-  onConnect: (source: string, address?: string) => Promise<boolean>;
+  onConnect: (enabledWallet: EnabledWallet, address?: string) => Promise<boolean>;
   onError: (message: string) => void;
 };
 
 type ModalStep = "wallets" | "accounts";
+type DetectionState = "checking" | "ready" | "noWallets";
+
+function isMobileBrowser() {
+  if (typeof navigator === "undefined") return false;
+  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+}
 
 export function WalletConnectModal({
   open,
@@ -27,55 +34,102 @@ export function WalletConnectModal({
   onError,
 }: WalletConnectModalProps) {
   const [wallets, setWallets] = useState<WalletOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [detectionState, setDetectionState] = useState<DetectionState>("checking");
+  const [retryNonce, setRetryNonce] = useState(0);
   const [submittingKey, setSubmittingKey] = useState<string | null>(null);
   const [selectedWallet, setSelectedWallet] = useState<WalletOption | null>(null);
+  const [selectedEnabledWallet, setSelectedEnabledWallet] = useState<EnabledWallet | null>(null);
   const [selectedAccounts, setSelectedAccounts] = useState<WalletAccount[]>([]);
   const [emptyStateMessage, setEmptyStateMessage] = useState<string | null>(null);
   const [step, setStep] = useState<ModalStep>("wallets");
+  const detectionStartedRef = useRef(false);
+  const connectInFlightRef = useRef(false);
+  const timeoutIdsRef = useRef<number[]>([]);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  const clearDetectionTimers = useCallback(() => {
+    timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    timeoutIdsRef.current = [];
+  }, []);
+
+  const resetModalState = useCallback(() => {
+    clearDetectionTimers();
+    detectionStartedRef.current = false;
+    connectInFlightRef.current = false;
+    setWallets([]);
+    setDetectionState("checking");
+    setSubmittingKey(null);
+    setSelectedWallet(null);
+    setSelectedEnabledWallet(null);
+    setSelectedAccounts([]);
+    setEmptyStateMessage(null);
+    setStep("wallets");
+  }, [clearDetectionTimers]);
+
+  const showNoWalletFallback = useCallback(() => {
+    setWallets(getWalletOptionsFromInjected([]));
+    setDetectionState("noWallets");
+    setEmptyStateMessage(
+      isMobileBrowser()
+        ? "Mobile browser cannot access extension wallets. Open this site inside SubWallet mobile browser."
+        : "Wallet extension not detected. Use desktop browser with SubWallet/Polkadot.js/Talisman or open inside SubWallet mobile browser.",
+    );
+  }, []);
 
   useEffect(() => {
     if (!open) {
-      setWallets([]);
-      setLoading(false);
-      setSelectedWallet(null);
-      setSelectedAccounts([]);
-      setEmptyStateMessage(null);
-      setStep("wallets");
-      setSubmittingKey(null);
+      resetModalState();
       return;
     }
 
-    let cancelled = false;
-
-    async function loadWallets() {
-      setLoading(true);
-      try {
-        const nextWallets = await detectWalletOptions();
-        if (cancelled) return;
-        setWallets(nextWallets);
-        setEmptyStateMessage(null);
-
-        const hasAnyInstalled = nextWallets.some((wallet) => wallet.installed);
-        if (!hasAnyInstalled) {
-          setEmptyStateMessage(
-            "No supported wallet extension was detected. On mobile, open TradeVault Arena inside the SubWallet, Talisman, or Enkrypt in-app browser, or use a desktop extension.",
-          );
-        }
-      } catch (error) {
-        if (cancelled) return;
-        onError(normalizeWalletErrorMessage(error));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    if (detectionStartedRef.current) {
+      return;
     }
 
-    void loadWallets();
+    detectionStartedRef.current = true;
+    setDetectionState("checking");
+    setEmptyStateMessage(null);
+
+    const attempts = [0, 500, 1000];
+
+    attempts.forEach((delayMs, attemptIndex) => {
+      const timeoutId = window.setTimeout(() => {
+        const injectedWallets = getInjectedWallets();
+        const nextWallets = getWalletOptionsFromInjected(injectedWallets);
+        const hasAnyInstalled = nextWallets.some((wallet) => wallet.installed);
+
+        if (hasAnyInstalled) {
+          clearDetectionTimers();
+          setWallets(nextWallets);
+          setDetectionState("ready");
+          return;
+        }
+
+        if (attemptIndex === attempts.length - 1) {
+          const fallbackTimeoutId = window.setTimeout(() => {
+            showNoWalletFallback();
+          }, 500);
+          timeoutIdsRef.current.push(fallbackTimeoutId);
+        }
+      }, delayMs);
+
+      timeoutIdsRef.current.push(timeoutId);
+    });
 
     return () => {
-      cancelled = true;
+      clearDetectionTimers();
     };
-  }, [onError, open]);
+  }, [clearDetectionTimers, open, resetModalState, retryNonce, showNoWalletFallback]);
+
+  const handleRetry = useCallback(() => {
+    if (!open) return;
+    resetModalState();
+    setRetryNonce((current) => current + 1);
+  }, [open, resetModalState]);
 
   const visibleAccounts = useMemo(
     () => selectedAccounts,
@@ -83,22 +137,24 @@ export function WalletConnectModal({
   );
 
   const handleWalletSelect = async (wallet: WalletOption) => {
-    if (!wallet.installed) return;
+    if (!wallet.installed || connectInFlightRef.current) return;
 
+    connectInFlightRef.current = true;
     setSubmittingKey(wallet.source);
     try {
       const enabled = await enableWallet(wallet.source);
       await handleEnabledWallet(wallet, enabled);
     } catch (error) {
-      onError(normalizeWalletErrorMessage(error, wallet.name));
+      onErrorRef.current(normalizeWalletErrorMessage(error, wallet.name));
     } finally {
+      connectInFlightRef.current = false;
       setSubmittingKey(null);
     }
   };
 
   const handleEnabledWallet = async (wallet: WalletOption, enabled: EnabledWallet) => {
     if (enabled.accounts.length === 0) {
-      onError(`No accounts found in ${wallet.name}. Open the extension, unlock it, and select an account.`);
+      onErrorRef.current(`No accounts found in ${wallet.name}. Open the extension, unlock it, and select an account.`);
       return;
     }
 
@@ -110,19 +166,24 @@ export function WalletConnectModal({
     }
 
     setSelectedWallet(wallet);
+    setSelectedEnabledWallet(enabled);
     setSelectedAccounts(enabled.accounts);
     setStep("accounts");
   };
 
   const handleAccountSelect = async (wallet: WalletOption, account: WalletAccount) => {
+    if (!selectedEnabledWallet || connectInFlightRef.current) return;
+
     const connectKey = `${wallet.source}:${account.address}`;
+    connectInFlightRef.current = true;
     setSubmittingKey(connectKey);
     try {
-      const connected = await onConnect(wallet.source, account.address);
+      const connected = await onConnect(selectedEnabledWallet, account.address);
       if (connected) {
         onClose();
       }
     } finally {
+      connectInFlightRef.current = false;
       setSubmittingKey(null);
     }
   };
@@ -173,6 +234,7 @@ export function WalletConnectModal({
                 onClick={() => {
                   setStep("wallets");
                   setSelectedWallet(null);
+                  setSelectedEnabledWallet(null);
                   setSelectedAccounts([]);
                 }}
                 className="mt-4 text-sm font-medium text-[var(--primary)] transition hover:text-[#67e8f9]"
@@ -182,27 +244,38 @@ export function WalletConnectModal({
             ) : null}
 
             <div className="mt-6 space-y-3">
-              {loading ? (
+              {detectionState === "checking" ? (
                 <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-8 text-center text-sm text-[var(--muted)]">
                   Checking wallet extensions...
                 </div>
               ) : null}
 
-              {!loading && emptyStateMessage ? (
+              {detectionState === "noWallets" && emptyStateMessage ? (
                 <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
-                  {emptyStateMessage}
+                  <p className="text-base font-semibold text-[var(--text)]">Wallet extension not detected</p>
+                  <p className="mt-2">{emptyStateMessage}</p>
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleRetry}
+                      className="rounded-[12px] border border-[rgba(34,211,238,0.2)] bg-[rgba(11,22,40,0.82)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[rgba(34,211,238,0.45)]"
+                    >
+                      Retry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-[12px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-2 text-sm font-semibold text-[var(--muted)] transition hover:text-[var(--text)]"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               ) : null}
 
-              {!loading && step === "wallets"
+              {detectionState === "ready" && step === "wallets"
                 ? wallets.map((wallet) => {
                     const disabled = !wallet.installed || Boolean(submittingKey);
-                    const statusLabel =
-                      wallet.installed && wallet.accountCount > 0
-                        ? `Enabled${wallet.accountCount > 1 ? ` · ${wallet.accountCount} accounts` : " · 1 account"}`
-                        : wallet.installed
-                          ? "Enabled"
-                        : "Disabled";
                     const isSubmitting = submittingKey === wallet.source;
 
                     return (
@@ -227,11 +300,9 @@ export function WalletConnectModal({
                           <div className="mt-1 text-sm text-[var(--muted)]">
                             {isSubmitting
                               ? "Requesting wallet permission..."
-                              : wallet.accountCount > 0
-                                ? "Extension detected and account access is ready."
-                                : wallet.installed
-                                  ? "Extension detected. Click to authorize access and choose an account."
-                                  : "Extension not installed in this browser."}
+                              : wallet.installed
+                                ? "Extension detected. Click to authorize access and choose an account."
+                                : "Extension not installed in this browser."}
                           </div>
                         </div>
                         <div
@@ -241,14 +312,14 @@ export function WalletConnectModal({
                               : "bg-white/[0.06] text-slate-400"
                           }`}
                         >
-                          {isSubmitting ? "Connecting..." : statusLabel}
+                          {isSubmitting ? "Connecting..." : wallet.installed ? "Enabled" : "Disabled"}
                         </div>
                       </button>
                     );
                   })
                 : null}
 
-              {!loading && step === "accounts"
+              {detectionState === "ready" && step === "accounts"
                 ? visibleAccounts.map((account) => {
                     const connectKey = `${selectedWallet?.source ?? "wallet"}:${account.address}`;
                     const isSubmitting = submittingKey === connectKey;
@@ -280,7 +351,7 @@ export function WalletConnectModal({
                   })
                 : null}
 
-              {!loading && step === "accounts" && visibleAccounts.length === 0 ? (
+              {detectionState === "ready" && step === "accounts" && visibleAccounts.length === 0 ? (
                 <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-8 text-center text-sm text-[var(--muted)]">
                   No accounts are available for this wallet.
                 </div>

@@ -70,6 +70,7 @@ import {
   processTournament,
   settleTournament,
 } from "@/lib/arena";
+import type { EnabledWallet } from "@/lib/wallet";
 import {
   describeCountdown,
   formatUsd,
@@ -820,9 +821,9 @@ export function App() {
   };
 
   const handleModalWalletConnect = useCallback(
-    async (source: string, address?: string): Promise<boolean> => {
+    async (enabledWallet: EnabledWallet, address?: string): Promise<boolean> => {
       try {
-        await connectWallet(source, address);
+        await connectWallet(enabledWallet, address);
         setWalletModalOpen(false);
         pushToast(
           "success",
