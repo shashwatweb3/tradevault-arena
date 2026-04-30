@@ -10,6 +10,7 @@ import { GearApi } from "@gear-js/api";
 import {
   listWallets,
   enableWallet,
+  normalizeWalletErrorMessage,
   type WalletAccount,
   type EnabledWallet,
 } from "@/lib/wallet";
@@ -126,50 +127,12 @@ type ChainContextValue = {
   /** Balance in VARA (human-readable, 12 decimals) */
   balance: string | null;
   connect: () => Promise<string[]>;
-  connectWallet: (source: string) => Promise<void>;
+  connectWallet: (source: string, preferredAddress?: string | null) => Promise<void>;
   selectAccount: (account: WalletAccount) => void;
   disconnect: () => void;
 };
 
 const ChainContext = createContext<ChainContextValue | null>(null);
-
-function normalizeWalletErrorMessage(error: unknown, source?: string): string {
-  const fallback = source
-    ? `Failed to connect "${source}".`
-    : "Failed to connect wallet.";
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : fallback;
-  const normalized = message.toLowerCase();
-
-  if (
-    normalized.includes("not available")
-    || normalized.includes("not found")
-    || normalized.includes("no extension")
-  ) {
-    return "No Vara-compatible wallet extension found. Install SubWallet, Talisman, or Polkadot.js.";
-  }
-
-  if (
-    normalized.includes("rejected")
-    || normalized.includes("denied")
-    || normalized.includes("cancelled")
-    || normalized.includes("canceled")
-  ) {
-    return "Wallet connection request was cancelled.";
-  }
-
-  if (normalized.includes("no account")) {
-    return source
-      ? `No account selected in "${source}". Open the extension, select an account, and try again.`
-      : "No account selected. Open the wallet extension, select an account, and try again.";
-  }
-
-  return message || fallback;
-}
 
 export function ChainProvider({ children }: { children: React.ReactNode }) {
   const [network, setNetwork] = useState<Network>(resolveInitialNetwork);
@@ -323,7 +286,7 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
   );
 
   const connectWallet = useCallback(
-    async (source: string) => {
+    async (source: string, preferredAddress?: string | null) => {
       setWalletStatus("connecting");
       setWalletError(null);
       try {
@@ -335,7 +298,10 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
           throw new Error(message);
         }
         const storedAddr = localStorage.getItem(STORAGE_ADDR);
-        applyWallet(enabled, storedAddr);
+        setWallets((current) =>
+          current.includes(source) ? current : [...current, source],
+        );
+        applyWallet(enabled, preferredAddress ?? storedAddr);
       } catch (err) {
         const message = normalizeWalletErrorMessage(err, source);
         setWalletError(message);

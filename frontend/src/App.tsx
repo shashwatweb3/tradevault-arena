@@ -36,6 +36,7 @@ import { RewardCard } from "@/components/ui/reward-card";
 import { QualificationBadge } from "@/components/ui/qualification-badge";
 import { GlowTable } from "@/components/ui/glow-table";
 import { VaultPositionCard } from "@/components/ui/vault-position-card";
+import { WalletConnectModal } from "@/components/wallet/WalletConnectModal";
 import type {
   ClaimableReward,
   TournamentHistoryItem,
@@ -139,18 +140,16 @@ export function App() {
     account,
     accounts,
     balance,
-    connect,
     connectWallet,
     disconnect,
     selectAccount,
     signer,
     walletError,
     walletStatus,
-    wallets,
   } = useWallet();
 
   const [route, setRoute] = useHashRoute();
-  const [walletPickerOpen, setWalletPickerOpen] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
   const [tradeDirection, setTradeDirection] = useState<PositionDirection>("Long");
   const [createForm, setCreateForm] = useState(defaultCreateForm);
@@ -168,6 +167,7 @@ export function App() {
   const [livePriceFeedStatus, setLivePriceFeedStatus] =
     useState<LivePriceFeedStatus>("connecting");
   const txInFlightRef = useRef(false);
+  const postConnectNoticeRef = useRef<string | null>(null);
   const previousOpenPositionRef = useRef<{
     tournamentId: string;
     direction: PositionDirection;
@@ -278,7 +278,7 @@ export function App() {
   }, [route.page, route.tournamentId]);
 
   useEffect(() => {
-    setWalletPickerOpen(false);
+    setWalletModalOpen(false);
   }, [route]);
 
   const participantQuery = useQuery({
@@ -819,11 +819,16 @@ export function App() {
     setRoute({ page: "trade", tournamentId });
   };
 
-  const handleWalletSourceConnect = useCallback(
-    async (source: string): Promise<boolean> => {
-      setWalletPickerOpen(false);
+  const handleModalWalletConnect = useCallback(
+    async (source: string, address?: string): Promise<boolean> => {
       try {
-        await connectWallet(source);
+        await connectWallet(source, address);
+        setWalletModalOpen(false);
+        pushToast(
+          "success",
+          postConnectNoticeRef.current ?? "Wallet connected.",
+        );
+        postConnectNoticeRef.current = null;
         return true;
       } catch (error) {
         pushToast("error", extractErrorMessage(error));
@@ -833,30 +838,18 @@ export function App() {
     [connectWallet, pushToast],
   );
 
-  const handleConnectWallet = useCallback(async (): Promise<"connected" | "picker" | "failed"> => {
+  const handleConnectWallet = useCallback(async (postConnectMessage?: string): Promise<"picker" | "failed"> => {
     if (isWalletConnectBusy) return "failed";
 
     try {
-      const available = wallets.length ? wallets : await connect();
-      if (available.length === 0) {
-        pushToast("error", "No Vara-compatible wallet extension found.");
-        setWalletPickerOpen(false);
-        return "failed";
-      }
-
-      if (available.length === 1) {
-        return (await handleWalletSourceConnect(available[0]!))
-          ? "connected"
-          : "failed";
-      }
-
-      setWalletPickerOpen((current) => !current);
+      postConnectNoticeRef.current = postConnectMessage ?? null;
+      setWalletModalOpen(true);
       return "picker";
     } catch (error) {
       pushToast("error", extractErrorMessage(error));
       return "failed";
     }
-  }, [connect, handleWalletSourceConnect, isWalletConnectBusy, pushToast, wallets]);
+  }, [isWalletConnectBusy, pushToast]);
 
   const runUserTx = useCallback(
     async <T,>(
@@ -871,13 +864,9 @@ export function App() {
       if (txInFlightRef.current) return undefined;
 
       if (!account) {
-        const result = await handleConnectWallet();
-        if (result === "connected") {
-          pushToast(
-            "info",
-            options?.retryMessage ?? `Wallet connected. Click ${actionName} again to continue.`,
-          );
-        }
+        await handleConnectWallet(
+          options?.retryMessage ?? `Wallet connected. Click ${actionName} again to continue.`,
+        );
         return undefined;
       }
 
@@ -1645,6 +1634,17 @@ export function App() {
           </motion.div>
         ) : null}
       </AnimatePresence>
+      <WalletConnectModal
+        open={walletModalOpen}
+        onClose={() => {
+          postConnectNoticeRef.current = null;
+          setWalletModalOpen(false);
+        }}
+        onConnect={handleModalWalletConnect}
+        onError={(message) => {
+          pushToast("error", message);
+        }}
+      />
       <AppShell
         navItems={shellNavItems}
         mobileNavItems={shellNavItems}
@@ -1678,32 +1678,14 @@ export function App() {
                   <div className="relative z-40 shrink-0 pointer-events-auto">
                     <Button
                       variant="primary"
-                      onClick={handleConnectWallet}
+                      onClick={() => {
+                        void handleConnectWallet();
+                      }}
                       disabled={isWalletConnectBusy}
                       className="relative z-40 pointer-events-auto"
                     >
                       {isWalletConnectBusy ? "Connecting..." : "Connect Wallet"}
                     </Button>
-                    {walletPickerOpen && wallets.length > 1 ? (
-                      <div className="surface-card absolute right-0 top-[calc(100%+0.75rem)] z-50 min-w-[220px] space-y-2 p-3 pointer-events-auto">
-                        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#475569]">
-                          Choose Wallet
-                        </p>
-                        {wallets.map((source) => (
-                          <Button
-                            key={source}
-                            variant="secondary"
-                            fullWidth
-                            className="justify-start"
-                            onClick={() => {
-                              void handleWalletSourceConnect(source);
-                            }}
-                          >
-                            {source}
-                          </Button>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                 ) : (
                   <WalletPill
@@ -2361,7 +2343,9 @@ export function App() {
                     action={
                       <Button
                         variant="primary"
-                        onClick={handleConnectWallet}
+                        onClick={() => {
+                          void handleConnectWallet();
+                        }}
                         disabled={isWalletConnectBusy}
                       >
                         {isWalletConnectBusy ? "Connecting..." : "Connect Wallet"}
@@ -2463,7 +2447,9 @@ export function App() {
                     action={
                       <Button
                         variant="primary"
-                        onClick={handleConnectWallet}
+                        onClick={() => {
+                          void handleConnectWallet();
+                        }}
                         disabled={isWalletConnectBusy}
                       >
                         {isWalletConnectBusy ? "Connecting..." : "Connect Wallet"}
