@@ -172,6 +172,8 @@ export function App() {
     entryPrice: string;
   } | null>(null);
   const lastDetectedCloseRef = useRef<string | null>(null);
+  const isWalletConnectBusy =
+    walletStatus === "loading" || walletStatus === "connecting";
 
   const isChainReady = apiStatus === "ready" && Boolean(api);
   const hasProgramId = isProgramIdLike(programId);
@@ -812,7 +814,21 @@ export function App() {
     setRoute({ page: "trade", tournamentId });
   };
 
+  const handleWalletSourceConnect = useCallback(
+    async (source: string) => {
+      setWalletPickerOpen(false);
+      try {
+        await connectWallet(source);
+      } catch (error) {
+        pushToast("error", extractErrorMessage(error));
+      }
+    },
+    [connectWallet, pushToast],
+  );
+
   const handleConnectWallet = useCallback(async () => {
+    if (isWalletConnectBusy) return;
+
     try {
       const available = wallets.length ? wallets : await connect();
       if (available.length === 0) {
@@ -822,8 +838,7 @@ export function App() {
       }
 
       if (available.length === 1) {
-        await connectWallet(available[0]!);
-        setWalletPickerOpen(false);
+        await handleWalletSourceConnect(available[0]!);
         return;
       }
 
@@ -831,7 +846,7 @@ export function App() {
     } catch (error) {
       pushToast("error", extractErrorMessage(error));
     }
-  }, [connect, connectWallet, pushToast, wallets]);
+  }, [connect, handleWalletSourceConnect, isWalletConnectBusy, pushToast, wallets]);
 
   const ensureWriteAccess = useCallback(
     (
@@ -1542,7 +1557,7 @@ export function App() {
           <TopBar
             title={pageTitle}
             right={
-              <div className="flex items-center gap-3">
+              <div className="relative z-30 flex items-center gap-3 pointer-events-auto">
                 <div className="hidden sm:block">
                   <PriceTicker
                     label="BTC/USD"
@@ -1551,16 +1566,17 @@ export function App() {
                   />
                 </div>
                 {!account ? (
-                  <div className="relative shrink-0">
+                  <div className="relative z-40 shrink-0 pointer-events-auto">
                     <Button
                       variant="primary"
                       onClick={handleConnectWallet}
-                      disabled={walletStatus === "loading" || wallets.length === 0}
+                      disabled={isWalletConnectBusy}
+                      className="relative z-40 pointer-events-auto"
                     >
-                      {walletStatus === "loading" ? "Loading Wallets" : "Connect Wallet"}
+                      {isWalletConnectBusy ? "Connecting..." : "Connect Wallet"}
                     </Button>
                     {walletPickerOpen && wallets.length > 1 ? (
-                      <div className="surface-card absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[220px] space-y-2 p-3">
+                      <div className="surface-card absolute right-0 top-[calc(100%+0.75rem)] z-50 min-w-[220px] space-y-2 p-3 pointer-events-auto">
                         <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#475569]">
                           Choose Wallet
                         </p>
@@ -1571,8 +1587,7 @@ export function App() {
                             fullWidth
                             className="justify-start"
                             onClick={() => {
-                              setWalletPickerOpen(false);
-                              connectWallet(source);
+                              void handleWalletSourceConnect(source);
                             }}
                           >
                             {source}
@@ -2223,9 +2238,9 @@ export function App() {
                       <Button
                         variant="primary"
                         onClick={handleConnectWallet}
-                        disabled={walletStatus === "loading" || wallets.length === 0}
+                        disabled={isWalletConnectBusy}
                       >
-                        Connect Wallet
+                        {isWalletConnectBusy ? "Connecting..." : "Connect Wallet"}
                       </Button>
                     }
                   />
@@ -2322,9 +2337,9 @@ export function App() {
                       <Button
                         variant="primary"
                         onClick={handleConnectWallet}
-                        disabled={walletStatus === "loading" || wallets.length === 0}
+                        disabled={isWalletConnectBusy}
                       >
-                        Connect Wallet
+                        {isWalletConnectBusy ? "Connecting..." : "Connect Wallet"}
                       </Button>
                     }
                   />
@@ -2714,11 +2729,13 @@ function WalletPill({
     <motion.div
       initial={{ opacity: 0, x: 8 }}
       animate={{ opacity: 1, x: 0 }}
-      className="flex flex-wrap items-center gap-2 rounded-[8px] border border-[rgba(255,255,255,0.08)] bg-[var(--panel)] px-3 py-2"
+      className="relative z-40 flex flex-wrap items-center gap-2 rounded-[8px] border border-[rgba(255,255,255,0.08)] bg-[var(--panel)] px-3 py-2 pointer-events-auto"
     >
       <span className="h-2 w-2 rounded-full bg-[var(--primary)]" />
       <div className="text-sm font-medium text-[var(--text)]">{shortAddress(address)}</div>
-      {balance ? <div className="font-mono text-sm tabular-nums text-[var(--muted)]">{balance} VARA</div> : null}
+      <div className="font-mono text-sm tabular-nums text-[var(--muted)]">
+        {balance ? `${balance} VARA` : "Balance syncing"}
+      </div>
       {isAdmin ? <UiStatusPill kind="admin" label="Admin" /> : null}
       {accounts.length > 1 ? (
         <select

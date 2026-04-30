@@ -133,6 +133,44 @@ type ChainContextValue = {
 
 const ChainContext = createContext<ChainContextValue | null>(null);
 
+function normalizeWalletErrorMessage(error: unknown, source?: string): string {
+  const fallback = source
+    ? `Failed to connect "${source}".`
+    : "Failed to connect wallet.";
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : fallback;
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("not available")
+    || normalized.includes("not found")
+    || normalized.includes("no extension")
+  ) {
+    return "No Vara-compatible wallet extension found. Install SubWallet, Talisman, or Polkadot.js.";
+  }
+
+  if (
+    normalized.includes("rejected")
+    || normalized.includes("denied")
+    || normalized.includes("cancelled")
+    || normalized.includes("canceled")
+  ) {
+    return "Wallet connection request was cancelled.";
+  }
+
+  if (normalized.includes("no account")) {
+    return source
+      ? `No account selected in "${source}". Open the extension, select an account, and try again.`
+      : "No account selected. Open the wallet extension, select an account, and try again.";
+  }
+
+  return message || fallback;
+}
+
 export function ChainProvider({ children }: { children: React.ReactNode }) {
   const [network, setNetwork] = useState<Network>(resolveInitialNetwork);
   const [programId, _setProgramId] = useState<string>(resolveInitialProgramId);
@@ -291,17 +329,18 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
       try {
         const enabled = await enableWallet(source);
         if (enabled.accounts.length === 0) {
-          setWalletError(`"${source}" has no accounts.`);
+          const message = `No account selected in "${source}". Open the extension, select an account, and try again.`;
+          setWalletError(message);
           setWalletStatus("disconnected");
-          return;
+          throw new Error(message);
         }
         const storedAddr = localStorage.getItem(STORAGE_ADDR);
         applyWallet(enabled, storedAddr);
       } catch (err) {
-        setWalletError(
-          err instanceof Error ? err.message : `Failed to connect "${source}".`
-        );
+        const message = normalizeWalletErrorMessage(err, source);
+        setWalletError(message);
         setWalletStatus("disconnected");
+        throw new Error(message);
       }
     },
     [applyWallet]
@@ -313,16 +352,25 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const connect = useCallback(async () => {
-    const available = await listWallets();
-    setWallets(available);
-
-    if (available.length === 0) {
-      setWalletStatus("unavailable");
-      return available;
-    }
-    setWalletStatus("disconnected");
+    setWalletStatus("loading");
     setWalletError(null);
-    return available;
+    try {
+      const available = await listWallets();
+      setWallets(available);
+
+      if (available.length === 0) {
+        setWalletStatus("unavailable");
+        return available;
+      }
+
+      setWalletStatus("disconnected");
+      return available;
+    } catch (err) {
+      const message = normalizeWalletErrorMessage(err);
+      setWalletStatus("disconnected");
+      setWalletError(message);
+      throw new Error(message);
+    }
   }, []);
 
   const value = useMemo<ChainContextValue>(
