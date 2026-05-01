@@ -11,8 +11,8 @@ export function VaultStats({
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2">
         {cards.map((card) => (
-          <div key={card.label} className="rounded-[8px] bg-[var(--sidebar)] p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#475569]">
+          <div key={card.label} className="tv-stat-card">
+            <p className="tv-label">
               {card.label}
             </p>
             <p

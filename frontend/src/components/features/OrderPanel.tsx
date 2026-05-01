@@ -66,9 +66,9 @@ export function OrderPanel({
   const riskConfigured = Boolean(stopLossPrice.trim() || takeProfitPrice.trim());
 
   return (
-    <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-4">
+    <div className="tv-panel p-4">
       <div>
-        <p className="text-[10px] uppercase tracking-[0.12em] text-[#475569]">
+        <p className="tv-label">
           Order
         </p>
         <p className="mt-2 text-[18px] font-semibold text-[var(--text)]">
@@ -97,7 +97,7 @@ export function OrderPanel({
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
             Size
           </span>
-          <div className="mt-2 flex min-h-[40px] items-center rounded-[7px] border border-[rgba(255,255,255,0.07)] bg-[var(--sidebar)] px-3">
+          <div className="mt-2 flex min-h-[44px] items-center rounded-[14px] border border-[var(--border)] bg-[var(--surface)] px-3">
             <input
               value={size}
               onChange={(event) => onSizeChange(event.target.value)}
@@ -109,7 +109,7 @@ export function OrderPanel({
           </div>
         </label>
 
-        <div className="space-y-1 rounded-[8px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-3 text-[13px]">
+        <div className="tv-panel-soft space-y-1 p-3 text-[13px]">
           <InfoRow label="Available" value={availableBalance} />
           <InfoRow label="Tournament Price" value={entryPrice} />
           <InfoRow label="Live BTC Price" value={currentPrice} />
@@ -135,10 +135,7 @@ export function OrderPanel({
           />
         </div>
 
-        <details
-          className="rounded-[8px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-3"
-          open={riskConfigured}
-        >
+        <details className="tv-panel-soft p-3" open={riskConfigured}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
@@ -157,7 +154,7 @@ export function OrderPanel({
               <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
                 Stop Loss Price
               </span>
-              <div className="mt-2 flex min-h-[40px] items-center rounded-[7px] border border-[rgba(255,255,255,0.07)] bg-[var(--panel-soft)] px-3">
+              <div className="mt-2 flex min-h-[44px] items-center rounded-[14px] border border-[var(--border)] bg-[var(--surface)] px-3">
                 <span className="text-[11px] text-[var(--label)]">$</span>
                 <input
                   value={stopLossPrice}
@@ -173,7 +170,7 @@ export function OrderPanel({
               <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
                 Take Profit Price
               </span>
-              <div className="mt-2 flex min-h-[40px] items-center rounded-[7px] border border-[rgba(255,255,255,0.07)] bg-[var(--panel-soft)] px-3">
+              <div className="mt-2 flex min-h-[44px] items-center rounded-[14px] border border-[var(--border)] bg-[var(--surface)] px-3">
                 <span className="text-[11px] text-[var(--label)]">$</span>
                 <input
                   value={takeProfitPrice}
@@ -192,8 +189,8 @@ export function OrderPanel({
         </details>
 
         {activePositionSummary ? (
-          <div className="rounded-[8px] border border-[var(--border-soft)] bg-[var(--panel-soft)] p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
+          <div className="tv-panel-soft p-3">
+            <p className="tv-label">
               Open Position
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">

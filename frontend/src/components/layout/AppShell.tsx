@@ -19,7 +19,7 @@ export function AppShell({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="relative flex min-h-screen bg-[var(--bg)]">
+    <div className="tv-shell relative flex min-h-screen">
       <Sidebar
         items={navItems}
         activeKey={activeKey}

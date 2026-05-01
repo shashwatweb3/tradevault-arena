@@ -51,10 +51,10 @@ export function TradePage({
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <section className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-5 sm:p-6">
+      <section className="tv-panel p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">
+            <p className="tv-kicker">
               {tournamentName}
             </p>
             <h1 className="mt-2 text-2xl font-semibold text-[var(--text)]">BTC/USD</h1>
@@ -72,7 +72,7 @@ export function TradePage({
       </section>
 
       {warning ? (
-        <div className="rounded-[12px] border border-[rgba(245,158,11,0.22)] bg-[rgba(245,158,11,0.08)] p-4 text-sm text-[var(--text)]">
+        <div className="tv-panel-soft border-[rgba(251,191,36,0.22)] p-4 text-sm text-[var(--text)]">
           {warning}
         </div>
       ) : null}
@@ -82,7 +82,7 @@ export function TradePage({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">{chart}</div>
-        <div className="space-y-4">{orderPanel}</div>
+        <div className="space-y-4 xl:sticky xl:top-6 xl:self-start">{orderPanel}</div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr_0.9fr]">
@@ -96,8 +96,8 @@ export function TradePage({
 
 function HeaderStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">{label}</p>
+    <div className="tv-stat-card">
+      <p className="tv-label">{label}</p>
       <p className="mt-2 text-sm font-semibold text-[var(--text)]">{value}</p>
     </div>
   );
@@ -117,7 +117,7 @@ function PromptCard({
   actionDisabled?: boolean;
 }) {
   return (
-    <section className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-5 sm:p-6">
+    <section className="tv-panel p-5 sm:p-6">
       <p className="text-lg font-semibold text-[var(--text)]">{title}</p>
       <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{copy}</p>
       {actionLabel && onAction ? (
@@ -125,7 +125,7 @@ function PromptCard({
           type="button"
           onClick={onAction}
           disabled={actionDisabled}
-          className="mt-4 inline-flex min-h-[40px] items-center justify-center rounded-[8px] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-50"
+          className="tv-action-primary mt-4 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {actionLabel}
         </button>

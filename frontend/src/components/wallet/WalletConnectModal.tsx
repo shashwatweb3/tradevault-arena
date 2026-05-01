@@ -204,15 +204,15 @@ export function WalletConnectModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-[#050B14]/75 px-4 backdrop-blur-md"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-[#050B14]/80 px-4 backdrop-blur-md"
           onClick={onClose}
         >
           <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            initial={{ opacity: 0, y: 18, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="w-full max-w-[520px] rounded-[28px] border border-[rgba(34,211,238,0.25)] bg-[linear-gradient(180deg,#242424_0%,#0B1628_100%)] p-5 shadow-[0_30px_120px_rgba(5,11,20,0.55)]"
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="tv-panel w-full max-w-[520px] p-5"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -229,7 +229,7 @@ export function WalletConnectModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(255,255,255,0.08)] bg-white/[0.03] text-[var(--muted)] transition hover:text-[var(--text)]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition hover:text-[var(--text)]"
                 aria-label="Close wallet modal"
               >
                 <X size={18} />
@@ -253,27 +253,27 @@ export function WalletConnectModal({
 
             <div className="mt-6 space-y-3">
               {detectionState === "checking" ? (
-                <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-8 text-center text-sm text-[var(--muted)]">
+                <div className="tv-panel-soft px-4 py-8 text-center text-sm text-[var(--muted)]">
                   Checking wallet extensions...
                 </div>
               ) : null}
 
               {detectionState === "noWallets" && emptyStateMessage ? (
-                <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
+                <div className="tv-panel-soft px-4 py-5 text-sm leading-6 text-[var(--muted)]">
                   <p className="text-base font-semibold text-[var(--text)]">Wallet extension not detected</p>
                   <p className="mt-2">{emptyStateMessage}</p>
                   <div className="mt-4 flex gap-3">
                     <button
                       type="button"
                       onClick={handleRetry}
-                      className="rounded-[12px] border border-[rgba(34,211,238,0.2)] bg-[rgba(11,22,40,0.82)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[rgba(34,211,238,0.45)]"
+                      className="tv-action-secondary text-sm"
                     >
                       Retry
                     </button>
                     <button
                       type="button"
                       onClick={onClose}
-                      className="rounded-[12px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-2 text-sm font-semibold text-[var(--muted)] transition hover:text-[var(--text)]"
+                      className="tv-action-secondary text-sm text-[var(--muted)]"
                     >
                       Close
                     </button>
@@ -287,20 +287,22 @@ export function WalletConnectModal({
                     const isSubmitting = submittingKey === wallet.source;
 
                     return (
-                      <button
+                      <motion.button
                         key={wallet.source}
                         type="button"
                         disabled={disabled}
                         onClick={() => {
                           void handleWalletSelect(wallet);
                         }}
+                        whileHover={disabled ? undefined : { y: -2 }}
+                        whileTap={disabled ? undefined : { scale: 0.99 }}
                         className={`flex w-full items-center gap-4 rounded-[22px] border px-4 py-4 text-left transition ${
                           disabled
-                            ? "cursor-not-allowed border-[rgba(255,255,255,0.08)] bg-white/[0.03] opacity-75"
-                            : "border-[rgba(34,211,238,0.18)] bg-[rgba(11,22,40,0.82)] hover:border-[rgba(34,211,238,0.45)] hover:bg-[rgba(11,22,40,0.96)]"
+                            ? "cursor-not-allowed border-[var(--border)] bg-[var(--surface)] opacity-75"
+                            : "border-[rgba(34,211,238,0.18)] bg-[var(--card-soft)] hover:border-[rgba(34,211,238,0.45)]"
                         }`}
                       >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-[rgba(34,211,238,0.2)] bg-[rgba(34,211,238,0.08)] text-base font-semibold text-[var(--text)]">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-[rgba(34,211,238,0.2)] bg-[var(--primary-soft)] text-base font-semibold text-[var(--text)]">
                           {wallet.iconLabel}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -314,15 +316,15 @@ export function WalletConnectModal({
                           </div>
                         </div>
                         <div
-                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                          className={`tv-pill shrink-0 px-3 py-1 text-xs font-semibold ${
                             wallet.installed
-                              ? "bg-emerald-500/15 text-emerald-300"
-                              : "bg-white/[0.06] text-slate-400"
+                              ? "text-[var(--success)]"
+                              : "text-[var(--muted-dark)]"
                           }`}
                         >
                           {isSubmitting ? "Connecting..." : wallet.installed ? "Enabled" : "Disabled"}
                         </div>
-                      </button>
+                      </motion.button>
                     );
                   })
                 : null}
@@ -333,7 +335,7 @@ export function WalletConnectModal({
                     const isSubmitting = submittingKey === connectKey;
 
                     return (
-                      <button
+                      <motion.button
                         key={account.address}
                         type="button"
                         disabled={Boolean(submittingKey)}
@@ -341,7 +343,9 @@ export function WalletConnectModal({
                           if (!selectedWallet) return;
                           void handleAccountSelect(selectedWallet, account);
                         }}
-                        className="flex w-full items-center justify-between gap-4 rounded-[22px] border border-[rgba(34,211,238,0.18)] bg-[rgba(11,22,40,0.82)] px-4 py-4 text-left transition hover:border-[rgba(34,211,238,0.45)] hover:bg-[rgba(11,22,40,0.96)] disabled:cursor-not-allowed disabled:opacity-70"
+                        whileHover={!submittingKey ? { y: -2 } : undefined}
+                        whileTap={!submittingKey ? { scale: 0.99 } : undefined}
+                        className="flex w-full items-center justify-between gap-4 rounded-[22px] border border-[rgba(34,211,238,0.18)] bg-[var(--card-soft)] px-4 py-4 text-left transition hover:border-[rgba(34,211,238,0.45)] disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         <div className="min-w-0">
                           <div className="text-base font-semibold text-[var(--text)]">
@@ -351,10 +355,10 @@ export function WalletConnectModal({
                             {shortAddress(account.address)}
                           </div>
                         </div>
-                        <div className="shrink-0 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                        <div className="tv-pill shrink-0 px-3 py-1 text-xs font-semibold text-[var(--success)]">
                           {isSubmitting ? "Connecting..." : "Connect"}
                         </div>
-                      </button>
+                      </motion.button>
                     );
                   })
                 : null}

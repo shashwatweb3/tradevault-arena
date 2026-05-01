@@ -34,7 +34,8 @@ export function TournamentsPage({
 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <section className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-5 sm:p-6">
+      <section className="tv-panel p-5 sm:p-6">
+        <p className="tv-kicker">Tournaments</p>
         <h1 className="text-2xl font-semibold text-[var(--text)]">Choose a tournament</h1>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
           Join an arena, trade BTC with virtual balance, and climb the Return % leaderboard.
@@ -43,22 +44,22 @@ export function TournamentsPage({
 
       {notices}
       {error ? (
-        <div className="rounded-[12px] border border-[rgba(244,63,94,0.2)] bg-[rgba(244,63,94,0.08)] p-4 text-sm text-[var(--text)]">
+        <div className="tv-panel-soft border-[rgba(239,68,68,0.22)] p-4 text-sm text-[var(--text)]">
           {error}
         </div>
       ) : null}
 
-      <section className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-5 sm:p-6">
+      <section className="tv-panel p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">Active</p>
+            <p className="tv-kicker">Active</p>
             <p className="mt-2 text-sm text-[var(--muted)]">The next action is on each row.</p>
           </div>
         </div>
 
         <div className="mt-5 space-y-3">
           {loading ? (
-            <div className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-4 text-sm text-[var(--muted)]">
+            <div className="tv-panel-soft p-4 text-sm text-[var(--muted)]">
               Loading tournaments...
             </div>
           ) : activeRows.length ? (
@@ -73,11 +74,11 @@ export function TournamentsPage({
         </div>
       </section>
 
-      <details className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-5 sm:p-6">
+      <details className="tv-panel p-5 sm:p-6">
         <summary className="cursor-pointer list-none text-left">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">Past</p>
+              <p className="tv-kicker">Past</p>
               <p className="mt-2 text-sm text-[var(--muted)]">Previous arenas and settled rewards.</p>
             </div>
             <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">

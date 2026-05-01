@@ -26,18 +26,18 @@ export function LeaderboardPanel({
   }[];
 }) {
   return (
-    <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-4">
+    <div className="tv-panel p-4">
       {podium.length ? (
         <div className="grid gap-3 md:grid-cols-3">
           {podium.map((entry) => (
             <motion.div
               key={entry.key}
               layout
-              className={`rounded-[10px] border border-[var(--border-soft)] bg-[var(--panel-soft)] p-4 ${
+              className={`tv-panel-soft p-4 ${
                 entry.rank === 1 ? "md:-translate-y-2" : ""
               }`}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#475569]">
+              <p className="tv-label">
                 #{entry.rank}
               </p>
               <p className="mt-3 text-sm font-semibold text-[var(--text)]">{entry.address}</p>
@@ -55,10 +55,10 @@ export function LeaderboardPanel({
           <motion.div
             key={row.key}
             layout
-            className={`grid gap-3 rounded-[10px] border px-3 py-3 md:grid-cols-[56px_1.2fr_0.9fr_0.9fr_0.9fr] md:items-center ${
+            className={`grid gap-3 rounded-[18px] border px-3 py-3 md:grid-cols-[56px_1.2fr_0.9fr_0.9fr_0.9fr] md:items-center ${
               row.highlight
-                ? "border-l-[3px] border-l-[var(--primary)] border-[var(--border-soft)] bg-[rgba(34,211,238,0.08)]"
-                : "border-[var(--border-soft)] bg-[var(--panel-soft)]"
+                ? "border-l-[3px] border-l-[var(--primary)] border-[var(--border)] bg-[var(--primary-soft)]"
+                : "border-[var(--border)] bg-[var(--card-soft)]"
             }`}
           >
             <p className="font-mono text-sm font-semibold text-[var(--text)] tabular-nums">#{row.rank}</p>
@@ -79,8 +79,8 @@ export function LeaderboardPanel({
       </div>
 
       {inactiveRows.length ? (
-        <div className="mt-4 border-t border-[var(--border-soft)] pt-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#475569]">
+        <div className="mt-4 border-t border-[var(--border)] pt-4">
+          <p className="tv-label">
             Not Qualified
           </p>
           <div className="mt-3 space-y-2">
@@ -88,10 +88,10 @@ export function LeaderboardPanel({
               <motion.div
                 key={row.key}
                 layout
-                className={`flex items-center justify-between gap-3 rounded-[10px] border px-3 py-3 ${
+                className={`flex items-center justify-between gap-3 rounded-[18px] border px-3 py-3 ${
                   row.highlight
-                    ? "border-l-[3px] border-l-[var(--primary)] border-[var(--border-soft)] bg-[rgba(34,211,238,0.08)]"
-                    : "border-[var(--border-soft)] bg-[var(--panel-soft)]"
+                    ? "border-l-[3px] border-l-[var(--primary)] border-[var(--border)] bg-[var(--primary-soft)]"
+                    : "border-[var(--border)] bg-[var(--card-soft)]"
                 }`}
               >
                 <div>

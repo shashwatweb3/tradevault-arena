@@ -25,7 +25,7 @@ export function TradingChart({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-4"
+      className="tv-panel p-4"
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -65,7 +65,7 @@ function LegendChip({
   const dot =
     tone === "cyan" ? "bg-[var(--primary)]" : tone === "purple" ? "bg-[var(--accent)]" : "bg-[var(--long)]";
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--panel-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+    <div className="tv-pill px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
       <span className={`h-2 w-2 rounded-full ${dot}`} />
       {label}
     </div>

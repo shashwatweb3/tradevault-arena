@@ -18,58 +18,62 @@ export function HomePage({
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <section className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-6 sm:p-8">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">
-          TradeVault Arena
-        </p>
-        <h1 className="mt-4 max-w-3xl text-3xl font-semibold text-[var(--text)] sm:text-4xl">
-          Compete in BTC trading tournaments
-        </h1>
-        <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-          Trade with virtual balance. Win real VARA rewards.
-        </p>
+      <section className="tv-panel grid gap-6 p-6 sm:p-8 lg:grid-cols-[minmax(0,1.3fr)_320px]">
+        <div>
+          <p className="tv-kicker">TradeVault Arena</p>
+          <h1 className="tv-title mt-4 max-w-3xl">Compete in BTC trading tournaments</h1>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
+            Trade with virtual balance. Win real VARA rewards.
+          </p>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Button variant="primary" onClick={onPrimary} className="sm:w-auto">
-            {primaryLabel}
-          </Button>
-          <Button variant="secondary" onClick={onSecondary} className="sm:w-auto">
-            View Leaderboard
-          </Button>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Button variant="primary" onClick={onPrimary} className="sm:w-auto">
+              {primaryLabel}
+            </Button>
+            <Button variant="secondary" onClick={onSecondary} className="sm:w-auto">
+              View Leaderboard
+            </Button>
+          </div>
         </div>
+
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+          className="tv-panel-soft space-y-4 p-5"
+        >
+          <motion.p variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="tv-label">
+            Live Arena
+          </motion.p>
+          <motion.p variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="text-2xl font-semibold tracking-[-0.03em] text-[var(--text)]">
+            Join. Trade. Win.
+          </motion.p>
+          <motion.p variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="text-sm leading-6 text-[var(--muted)]">
+            One tournament. One virtual balance. The highest Return % takes the reward pool.
+          </motion.p>
+          <div className="grid gap-3">
+            {stats.map((stat) => (
+              <div key={stat.label} className="tv-stat-card">
+                <p className="tv-label">{stat.label}</p>
+                <p className="tv-value mt-3 text-[22px]">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        {stats.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.06 }}
-            className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-4"
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
-              {stat.label}
-            </p>
-            <p className="mt-3 text-lg font-semibold text-[var(--text)]">{stat.value}</p>
-          </motion.div>
-        ))}
-      </section>
-
-      <section className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-5 sm:p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">
-          How it works
-        </p>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <section className="space-y-4">
+        <p className="tv-kicker">How it works</p>
+        <div className="grid gap-3 md:grid-cols-3">
           {[
             { step: "1. Join", copy: "Pick a BTC tournament and reserve your spot." },
             { step: "2. Trade", copy: "Use virtual balance to open Long or Short positions." },
             { step: "3. Win", copy: "Top Return % earns real VARA rewards." },
           ].map((item) => (
-            <div key={item.step} className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-4">
+            <motion.div key={item.step} whileHover={{ y: -3 }} className="tv-panel-soft p-5">
               <p className="text-sm font-semibold text-[var(--text)]">{item.step}</p>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{item.copy}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>

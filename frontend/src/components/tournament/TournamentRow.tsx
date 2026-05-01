@@ -34,10 +34,10 @@ export function TournamentRow({
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-[12px] border px-4 py-4 ${
+      className={`tv-panel px-4 py-4 ${
         active
-          ? "border-[rgba(34,211,238,0.22)] bg-[var(--panel)]"
-          : "border-[var(--border-soft)] bg-[var(--panel)]"
+          ? "border-[rgba(34,211,238,0.22)]"
+          : ""
       }`}
     >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">

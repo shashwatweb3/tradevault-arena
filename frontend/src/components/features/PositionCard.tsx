@@ -33,7 +33,7 @@ export function PositionCard({
 }) {
   if (!hasPosition) {
     return (
-      <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-4">
+      <div className="tv-panel p-4">
         <p className="text-sm font-semibold text-[var(--text)]">No open position</p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Open a Long or Short position to start tracking live and official Profit / Loss.
@@ -46,7 +46,7 @@ export function PositionCard({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-4"
+      className="tv-panel p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -62,8 +62,8 @@ export function PositionCard({
         ) : null}
       </div>
 
-      <div className="mt-4 rounded-[8px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
+      <div className="tv-panel-soft mt-4 p-4">
+        <p className="tv-label">
           Live Preview P/L
         </p>
         <motion.p
@@ -96,8 +96,8 @@ export function PositionCard({
       </div>
 
       {riskControls?.stopLossPrice || riskControls?.takeProfitPrice ? (
-        <div className="mt-4 rounded-[8px] border border-[var(--border-soft)] bg-[var(--panel-soft)] p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
+        <div className="tv-panel-soft mt-4 p-3">
+          <p className="tv-label">
             Risk Controls
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -123,8 +123,8 @@ function Stat({
   mono?: boolean;
 }) {
   return (
-    <div className="rounded-[8px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">{label}</p>
+    <div className="tv-stat-card">
+      <p className="tv-label">{label}</p>
       <p className={`mt-2 text-[13px] font-semibold text-[var(--text)] ${mono ? "font-mono tabular-nums" : ""}`}>
         {value}
       </p>
@@ -146,8 +146,8 @@ function AnimatedStat({
       : "text-[var(--text)]";
 
   return (
-    <div className="rounded-[8px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">{label}</p>
+    <div className="tv-stat-card">
+      <p className="tv-label">{label}</p>
       <motion.p
         key={value?.key ?? label}
         initial={{ opacity: 0.85, scale: 0.98 }}

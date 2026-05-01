@@ -50,9 +50,9 @@ export function PriceTicker({
     <motion.div
       animate={{ scale: flash ? [1, 1.02, 1] : 1 }}
       transition={{ duration: 0.22 }}
-      className={`inline-flex min-h-[36px] items-center gap-3 rounded-full border border-[rgba(255,255,255,0.1)] px-[14px] py-[6px] transition-colors duration-300 ${flashBackground}`}
+      className={`tv-pill min-h-[40px] gap-3 px-[14px] py-[7px] transition-colors duration-300 ${flashBackground}`}
     >
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[rgba(247,147,26,0.18)] text-[#F7931A]">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(247,147,26,0.18)] text-[#F7931A]">
         <CurrencyBtc size={11} weight="bold" />
       </span>
       <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--muted)]">

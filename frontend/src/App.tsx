@@ -2290,7 +2290,7 @@ export function App() {
     ) : null;
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-slate-100">
+    <div className="tv-shell">
       <AnimatePresence>
         {toasts.length ? (
           <motion.div
@@ -2321,8 +2321,8 @@ export function App() {
         mobileNavItems={shellNavItems}
         activeKey={shellActiveKey}
         sidebarFooter={
-          <div className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--panel)] p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#475569]">
+          <div className="tv-panel-soft p-4">
+            <p className="tv-label">
               How it works
             </p>
             <div className="mt-3 space-y-2 text-sm text-[var(--muted)]">
@@ -2333,7 +2333,7 @@ export function App() {
           </div>
         }
       >
-        <div className="mx-auto w-full max-w-[1440px] px-4 pb-24 pt-4 sm:px-6 lg:px-6 lg:pb-8 lg:pt-6">
+        <div className="tv-container w-full px-0 pb-24 pt-4 lg:pb-8 lg:pt-6">
           <TopBar
             title={pageTitle}
             right={
@@ -2384,17 +2384,17 @@ export function App() {
               </div>
             ) : null}
 
-            <AnimatePresence mode="wait">
-              <motion.div
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.main
                 key={activeRouteKey}
-                variants={stagger}
-                initial="hidden"
-                animate="show"
-                exit={{ opacity: 0, y: 16, transition: { duration: 0.18 } }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                className="min-w-0 space-y-6"
               >
                 {pageContent}
-              </motion.div>
+              </motion.main>
             </AnimatePresence>
           </div>
         </div>
@@ -2426,7 +2426,7 @@ function WalletPill({
     <motion.div
       initial={{ opacity: 0, x: 8 }}
       animate={{ opacity: 1, x: 0 }}
-      className="relative z-40 flex flex-wrap items-center gap-2 rounded-[8px] border border-[rgba(255,255,255,0.08)] bg-[var(--panel)] px-3 py-2 pointer-events-auto"
+      className="tv-pill relative z-40 flex flex-wrap items-center gap-2 px-3 py-2 pointer-events-auto"
     >
       <span className="h-2 w-2 rounded-full bg-[var(--primary)]" />
       <div className="text-sm font-medium text-[var(--text)]">{shortAddress(address)}</div>
@@ -2438,7 +2438,7 @@ function WalletPill({
         <select
           value={selectedAddress}
           onChange={(event) => onSelectAddress(event.target.value)}
-          className="rounded-full border border-[var(--border-soft)] bg-[var(--sidebar)] px-3 py-1.5 text-xs text-[var(--text)] outline-none"
+          className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text)] outline-none"
         >
           {accounts.map((candidate) => (
             <option key={candidate.address} value={candidate.address}>
@@ -2495,8 +2495,8 @@ function TournamentSelector({
             }}
             className={
               active
-                ? "inline-flex items-center gap-2 rounded-[8px] border border-[rgba(34,211,238,0.2)] bg-[rgba(34,211,238,0.1)] px-4 py-2 text-sm font-semibold text-[var(--primary)]"
-                : "inline-flex items-center gap-2 rounded-[8px] border border-[rgba(255,255,255,0.1)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[#94A3B8] transition hover:bg-white/[0.04] hover:text-[var(--text)]"
+                ? "inline-flex items-center gap-2 rounded-full border border-[rgba(34,211,238,0.2)] bg-[var(--primary-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)]"
+                : "inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[#94A3B8] transition hover:text-[var(--text)]"
             }
           >
             <span className={`h-2 w-2 rounded-full ${dotClass}`} />

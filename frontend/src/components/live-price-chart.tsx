@@ -67,12 +67,12 @@ export function LivePriceChart({
       width: container.clientWidth,
       height: 300,
       layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#94a3b8",
+        background: { type: ColorType.Solid, color: "#0B1628" },
+        textColor: "#94A3B8",
       },
       grid: {
-        vertLines: { color: "rgba(148, 163, 184, 0.08)" },
-        horzLines: { color: "rgba(148, 163, 184, 0.08)" },
+        vertLines: { color: "rgba(255,255,255,0.06)" },
+        horzLines: { color: "rgba(255,255,255,0.06)" },
       },
       rightPriceScale: {
         borderVisible: false,
@@ -101,12 +101,12 @@ export function LivePriceChart({
     });
 
     const series = chart.addAreaSeries({
-      lineColor: "#22d3ee",
+      lineColor: "#22D3EE",
       lineWidth: 2,
       topColor: "rgba(34, 211, 238, 0.32)",
       bottomColor: "rgba(34, 211, 238, 0.02)",
-      priceLineColor: "#22d3ee",
-      crosshairMarkerBackgroundColor: "#22d3ee",
+      priceLineColor: "#22D3EE",
+      crosshairMarkerBackgroundColor: "#22D3EE",
       lastValueVisible: true,
       priceLineVisible: true,
     });
@@ -205,7 +205,7 @@ export function LivePriceChart({
 
   if (!cleanedHistory.length) {
     return (
-      <div className="flex h-[280px] items-center justify-center rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] text-sm text-[var(--muted)]">
+      <div className="tv-panel-soft flex h-[280px] items-center justify-center text-sm text-[var(--muted)]">
         Waiting for BTC/USD market data...
       </div>
     );
@@ -216,7 +216,7 @@ export function LivePriceChart({
   const latest = cleanedHistory[cleanedHistory.length - 1];
 
   return (
-    <div className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-3">
+    <div className="tv-panel-soft p-3">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
@@ -251,8 +251,8 @@ export function LivePriceChart({
 
 function ChartStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[8px] border border-[var(--border-soft)] bg-[var(--panel-soft)] px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label)]">
+    <div className="tv-stat-card px-3 py-2">
+      <p className="tv-label">
         {label}
       </p>
       <p className="mt-1 font-mono text-[12px] font-medium tabular-nums text-[var(--text)]">{value}</p>
@@ -262,7 +262,7 @@ function ChartStat({ label, value }: { label: string; value: string }) {
 
 function ChartLegend({ label, color }: { label: string; color: string }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--panel-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+    <div className="tv-pill px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
       {label}
     </div>

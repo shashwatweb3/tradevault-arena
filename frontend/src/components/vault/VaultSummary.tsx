@@ -8,7 +8,7 @@ export function VaultSummary({
   aside?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[12px] border border-[var(--border-soft)] bg-[var(--panel)] p-4">
+    <div className="tv-panel p-4">
       <VaultStats cards={cards} aside={aside} />
     </div>
   );
