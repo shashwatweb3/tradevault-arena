@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 
 export function HomePage({
@@ -6,11 +7,13 @@ export function HomePage({
   onPrimary,
   onSecondary,
   stats,
+  onboardingGuide,
 }: {
   primaryLabel: string;
   onPrimary: () => void;
   onSecondary: () => void;
   stats: { label: string; value: string }[];
+  onboardingGuide?: ReactNode;
 }) {
   return (
     <motion.div
@@ -77,6 +80,8 @@ export function HomePage({
           ))}
         </div>
       </section>
+
+      {onboardingGuide}
     </motion.div>
   );
 }

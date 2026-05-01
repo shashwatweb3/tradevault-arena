@@ -25,12 +25,18 @@ export function TournamentsPage({
   loading,
   error,
   notices,
+  loadingState,
+  emptyAction,
+  pastEmptyAction,
 }: {
   activeRows: TournamentListRow[];
   pastRows: TournamentListRow[];
   loading?: boolean;
   error?: string | null;
   notices?: ReactNode;
+  loadingState?: ReactNode;
+  emptyAction?: ReactNode;
+  pastEmptyAction?: ReactNode;
 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -59,9 +65,7 @@ export function TournamentsPage({
 
         <div className="mt-5 space-y-3">
           {loading ? (
-            <div className="tv-panel-soft p-4 text-sm text-[var(--muted)]">
-              Loading tournaments...
-            </div>
+            loadingState ?? <div className="tv-panel-soft p-4 text-sm text-[var(--muted)]">Loading tournaments...</div>
           ) : activeRows.length ? (
             activeRows.map(({ key, ...row }) => <TournamentRow key={key} {...row} />)
           ) : (
@@ -69,6 +73,7 @@ export function TournamentsPage({
               eyebrow="Tournaments"
               title="No active arenas yet"
               copy="The next BTC arena will appear here when it opens."
+              action={emptyAction}
             />
           )}
         </div>
@@ -95,6 +100,7 @@ export function TournamentsPage({
               eyebrow="Past tournaments"
               title="No completed arenas yet"
               copy="Finished tournaments will appear here."
+              action={pastEmptyAction}
             />
           )}
         </div>

@@ -12,6 +12,7 @@ export function LeaderboardPage({
   loading,
   error,
   emptyState,
+  loadingState,
 }: {
   tabs: {
     key: string;
@@ -46,6 +47,7 @@ export function LeaderboardPage({
     copy: string;
     action?: ReactNode;
   } | null;
+  loadingState?: ReactNode;
 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -78,9 +80,7 @@ export function LeaderboardPage({
       ) : null}
 
       {loading ? (
-        <div className="tv-panel p-5 text-sm text-[var(--muted)]">
-          Loading rankings...
-        </div>
+        loadingState ?? <div className="tv-panel p-5 text-sm text-[var(--muted)]">Loading rankings...</div>
       ) : emptyState ? (
         <EmptyStatePanel
           eyebrow="Leaderboard"

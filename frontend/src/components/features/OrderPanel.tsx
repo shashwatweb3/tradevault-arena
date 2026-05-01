@@ -19,6 +19,7 @@ export function OrderPanel({
   onAction,
   actionVariant,
   actionDisabled,
+  actionDisabledReason,
   secondaryActionLabel,
   onSecondaryAction,
   secondaryDisabled,
@@ -46,6 +47,7 @@ export function OrderPanel({
   onAction: () => void;
   actionVariant: "positive" | "danger";
   actionDisabled?: boolean;
+  actionDisabledReason?: string | null;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
   secondaryDisabled?: boolean;
@@ -203,9 +205,12 @@ export function OrderPanel({
 
         {warning ? <div className="text-[12px] text-[var(--short)]">{warning}</div> : null}
         {helper ? <div className="text-[12px] text-[var(--muted)]">{helper}</div> : null}
+        {actionDisabled && actionDisabledReason ? (
+          <div className="text-[12px] text-[var(--muted)]">{actionDisabledReason}</div>
+        ) : null}
 
         {!activePositionSummary ? (
-          <Button variant={actionVariant} fullWidth onClick={onAction} disabled={actionDisabled}>
+          <Button variant={actionVariant} fullWidth onClick={onAction} disabled={actionDisabled} title={actionDisabledReason ?? undefined}>
             {actionLabel}
           </Button>
         ) : null}

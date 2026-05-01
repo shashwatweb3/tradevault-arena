@@ -8,11 +8,14 @@ export function TradePage({
   prompt,
   warning,
   notices,
+  statusPanel,
   chart,
   orderPanel,
+  fairnessCard,
   positionPanel,
   vaultSummary,
   leaderboardPanel,
+  confirmationModal,
 }: {
   tournamentName?: string | null;
   market?: {
@@ -31,11 +34,14 @@ export function TradePage({
   } | null;
   warning?: string | null;
   notices?: ReactNode;
+  statusPanel?: ReactNode;
   chart?: ReactNode;
   orderPanel?: ReactNode;
+  fairnessCard?: ReactNode;
   positionPanel?: ReactNode;
   vaultSummary?: ReactNode;
   leaderboardPanel?: ReactNode;
+  confirmationModal?: ReactNode;
 }) {
   if (!tournamentName || !market) {
     return (
@@ -79,6 +85,7 @@ export function TradePage({
 
       {prompt ? <PromptCard {...prompt} /> : null}
       {notices}
+      {statusPanel}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">{chart}</div>
@@ -90,6 +97,9 @@ export function TradePage({
         {vaultSummary}
         {leaderboardPanel}
       </div>
+
+      {fairnessCard}
+      {confirmationModal}
     </motion.div>
   );
 }

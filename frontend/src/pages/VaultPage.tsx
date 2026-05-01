@@ -8,6 +8,7 @@ export function VaultPage({
   reward,
   position,
   notices,
+  onboardingGuide,
 }: {
   tournamentTabs?: ReactNode;
   connectPrompt?: ReactNode;
@@ -15,6 +16,7 @@ export function VaultPage({
   reward?: ReactNode;
   position?: ReactNode;
   notices?: ReactNode;
+  onboardingGuide?: ReactNode;
 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -35,6 +37,7 @@ export function VaultPage({
         {reward}
       </div>
 
+      {onboardingGuide}
       {position}
     </motion.div>
   );

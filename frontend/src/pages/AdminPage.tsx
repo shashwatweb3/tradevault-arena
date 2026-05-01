@@ -3,10 +3,12 @@ import type { ReactNode } from "react";
 
 export function AdminPage({
   createPanel,
+  keeperPanel,
   controlsPanel,
   lifecyclePanel,
 }: {
   createPanel: ReactNode;
+  keeperPanel?: ReactNode;
   controlsPanel: ReactNode;
   lifecyclePanel: ReactNode;
 }) {
@@ -22,6 +24,10 @@ export function AdminPage({
 
       <div className="grid gap-6 xl:grid-cols-2">
         {createPanel}
+        {keeperPanel}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
         {controlsPanel}
       </div>
 

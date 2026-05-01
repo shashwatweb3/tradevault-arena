@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export function PositionCard({
   direction,
@@ -14,6 +16,7 @@ export function PositionCard({
   hasPosition,
   onClose,
   closePending,
+  emptyAction,
 }: {
   direction?: string | null;
   size?: string | null;
@@ -30,15 +33,17 @@ export function PositionCard({
   hasPosition: boolean;
   onClose?: () => void;
   closePending?: boolean;
+  emptyAction?: ReactNode;
 }) {
   if (!hasPosition) {
     return (
-      <div className="tv-panel p-4">
-        <p className="text-sm font-semibold text-[var(--text)]">No open position</p>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Open a Long or Short position to start tracking live and official Profit / Loss.
-        </p>
-      </div>
+      <EmptyState
+        eyebrow="No trades"
+        title="No open position"
+        copy="Open a Long or Short position to start tracking live and official Profit / Loss."
+        action={emptyAction}
+        compact
+      />
     );
   }
 
