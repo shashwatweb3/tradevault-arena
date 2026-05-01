@@ -111,11 +111,15 @@ const stagger = {
   show: { transition: { staggerChildren: 0.06 } },
 };
 
+const CREATE_TOURNAMENT_START_BUFFER_SECONDS = 60;
+const CREATE_TOURNAMENT_MIN_DURATION_SECONDS = 5 * 60;
+const CREATE_TOURNAMENT_MAX_DURATION_SECONDS = 30 * 24 * 60 * 60;
+
 const defaultCreateForm = () => ({
   name: "Weekend BTC Sprint",
   entryFee: "5",
-  startTime: toDatetimeLocalValue(Date.now() + 15 * 60 * 1000),
-  endTime: toDatetimeLocalValue(Date.now() + 75 * 60 * 1000),
+  startTime: toDatetimeLocalValue(Date.now() + 10 * 60 * 1000),
+  endTime: toDatetimeLocalValue(Date.now() + 70 * 60 * 1000),
   initialVirtualBalance: "1000",
   maxParticipants: "25",
 });
@@ -348,6 +352,10 @@ export function App() {
   });
 
   const isAdmin = sameAddress(account?.address, adminQuery.data);
+  const createTimeValidation = useMemo(
+    () => validateCreateTournamentTimes(createForm.startTime, createForm.endTime),
+    [createForm.startTime, createForm.endTime],
+  );
   const createTournamentMutation = useMutation({
     mutationFn: async (input: CreateTournamentInput) => {
       if (!api || !txAccount) throw new Error("Connect a wallet to create a tournament.");
@@ -556,18 +564,16 @@ export function App() {
 
       const name = createForm.name.trim();
       if (!name) throw new Error("Tournament name is required.");
-
-      const startTime = new Date(createForm.startTime).getTime();
-      const endTime = new Date(createForm.endTime).getTime();
-      if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+      if (createTimeValidation.error) throw new Error(createTimeValidation.error);
+      if (createTimeValidation.startMs == null || createTimeValidation.endMs == null) {
         throw new Error("Start and end times must be valid timestamps.");
       }
 
       const input: CreateTournamentInput = {
         name,
         entryFee: parsePlanck(createForm.entryFee),
-        startTime: BigInt(startTime),
-        endTime: BigInt(endTime),
+        startTime: BigInt(createTimeValidation.startMs),
+        endTime: BigInt(createTimeValidation.endMs),
         initialVirtualBalance: parseUnsignedInteger(
           createForm.initialVirtualBalance,
           "Initial virtual balance",
@@ -2204,6 +2210,7 @@ export function App() {
               }
               className="input-base"
             />
+            <p className="text-xs text-[var(--muted)]">Start must be in the future.</p>
           </Field>
           <Field label="End time">
             <input
@@ -2214,7 +2221,16 @@ export function App() {
               }
               className="input-base"
             />
+            <p className="text-xs text-[var(--muted)]">End must be after start.</p>
           </Field>
+          <div className="sm:col-span-2 rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="font-medium text-[var(--text)]">
+                Duration: {createTimeValidation.durationLabel}
+              </span>
+              <span className="text-[var(--muted)]">Contract timestamps use milliseconds.</span>
+            </div>
+          </div>
           <Field label="Max participants" className="sm:col-span-2">
             <input
               value={createForm.maxParticipants}
@@ -2228,6 +2244,9 @@ export function App() {
             />
           </Field>
         </div>
+        {!createFormError && createTimeValidation.error ? (
+          <Notice tone="warning">{createTimeValidation.error}</Notice>
+        ) : null}
         {createFormError ? <Notice tone="error">{createFormError}</Notice> : null}
         {renderMutationNotice(createTournamentMutation, {
           pending: "Waiting for wallet approval...",
@@ -2235,7 +2254,11 @@ export function App() {
             ? `Confirmed: tournament #${createTournamentMutation.data.tournament_id} created.`
             : "Confirmed: tournament created.",
         })}
-        <Button type="submit" variant="primary" disabled={createTournamentMutation.isPending || !hasProgramId}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={createTournamentMutation.isPending || !hasProgramId || Boolean(createTimeValidation.error)}
+        >
           Create Tournament
         </Button>
       </form>
@@ -3186,6 +3209,9 @@ function rawErrorMessage(error: unknown): string {
 }
 
 function mapArenaErrorMessage(message: string): string {
+  if (message.includes("InvalidTimeRange")) {
+    return "Invalid tournament time. Please choose a future start time and an end time after start.";
+  }
   if (message.includes("TournamentNotActive")) return "Tournament not active.";
   if (message.includes("TournamentNotUpcoming")) return "Tournament already started.";
   if (message.includes("TournamentRequiresEnd")) return "End the tournament on-chain before settling.";
@@ -3381,8 +3407,57 @@ function formatRelativeSeconds(timestamp: number, now: number): string {
   return `${seconds}s ago`;
 }
 
+function validateCreateTournamentTimes(startTimeInput: string, endTimeInput: string, nowMs = Date.now()) {
+  const now = Math.floor(nowMs / 1000);
+  const startMs = new Date(startTimeInput).getTime();
+  const endMs = new Date(endTimeInput).getTime();
+  const start = Math.floor(startMs / 1000);
+  const end = Math.floor(endMs / 1000);
+  const hasValidStart = Number.isFinite(startMs);
+  const hasValidEnd = Number.isFinite(endMs);
+
+  let error: string | null = null;
+  if (!hasValidStart || !hasValidEnd) {
+    error = "Start and end times must be valid timestamps.";
+  } else if (start <= now + CREATE_TOURNAMENT_START_BUFFER_SECONDS) {
+    error = "Start time must be at least 1 minute from now.";
+  } else if (end <= start) {
+    error = "End time must be after start.";
+  } else if (end - start < CREATE_TOURNAMENT_MIN_DURATION_SECONDS) {
+    error = "Tournament duration must be at least 5 minutes.";
+  } else if (end - start > CREATE_TOURNAMENT_MAX_DURATION_SECONDS) {
+    error = "Tournament duration cannot exceed 30 days.";
+  }
+
+  return {
+    startMs: hasValidStart ? startMs : null,
+    endMs: hasValidEnd ? endMs : null,
+    durationLabel:
+      hasValidStart && hasValidEnd && endMs > startMs
+        ? formatDurationLabel(endMs - startMs)
+        : "—",
+    error,
+  };
+}
+
 function formatLatency(latencyMs: number): string {
   return `Synced ${(latencyMs / 1000).toFixed(1)}s`;
+}
+
+function formatDurationLabel(durationMs: number): string {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return "—";
+
+  const totalMinutes = Math.floor(durationMs / 60_000);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts: string[] = [];
+
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
+
+  return parts.join(" ");
 }
 
 function isParticipantQualified({
