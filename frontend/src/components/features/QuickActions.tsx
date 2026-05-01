@@ -41,7 +41,7 @@ export function QuickActions({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 * index, duration: 0.24 }}
-            whileHover={{ y: -3, borderColor: "rgba(34,211,238,0.14)" }}
+            whileHover={{ y: -3, borderColor: "rgba(57,255,136,0.14)" }}
             className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-4"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[var(--border-soft)] bg-[var(--panel-soft)] text-[var(--primary)]">

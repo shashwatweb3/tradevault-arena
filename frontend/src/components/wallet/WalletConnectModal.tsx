@@ -245,7 +245,7 @@ export function WalletConnectModal({
                   setSelectedEnabledWallet(null);
                   setSelectedAccounts([]);
                 }}
-                className="mt-4 text-sm font-medium text-[var(--primary)] transition hover:text-[#67e8f9]"
+                className="mt-4 text-sm font-medium text-[var(--primary)] transition hover:text-[var(--primary-strong)]"
               >
                 Back to wallets
               </button>
@@ -299,10 +299,10 @@ export function WalletConnectModal({
                         className={`flex w-full items-center gap-4 rounded-[22px] border px-4 py-4 text-left transition ${
                           disabled
                             ? "cursor-not-allowed border-[var(--border)] bg-[var(--surface)] opacity-75"
-                            : "border-[rgba(34,211,238,0.18)] bg-[var(--card-soft)] hover:border-[rgba(34,211,238,0.45)]"
+                            : "border-[rgba(57,255,136,0.16)] bg-[#070A0C] hover:border-[rgba(57,255,136,0.28)] hover:shadow-[var(--shadow-glow)]"
                         }`}
                       >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-[rgba(34,211,238,0.2)] bg-[var(--primary-soft)] text-base font-semibold text-[var(--text)]">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-[rgba(57,255,136,0.16)] bg-[var(--primary-soft)] text-base font-semibold text-[var(--text)]">
                           {wallet.iconLabel}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -345,7 +345,7 @@ export function WalletConnectModal({
                         }}
                         whileHover={!submittingKey ? { y: -2 } : undefined}
                         whileTap={!submittingKey ? { scale: 0.99 } : undefined}
-                        className="flex w-full items-center justify-between gap-4 rounded-[22px] border border-[rgba(34,211,238,0.18)] bg-[var(--card-soft)] px-4 py-4 text-left transition hover:border-[rgba(34,211,238,0.45)] disabled:cursor-not-allowed disabled:opacity-70"
+                        className="flex w-full items-center justify-between gap-4 rounded-[22px] border border-[rgba(57,255,136,0.18)] bg-[#070A0C] px-4 py-4 text-left transition hover:border-[rgba(57,255,136,0.28)] hover:shadow-[var(--shadow-glow)] disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         <div className="min-w-0">
                           <div className="text-base font-semibold text-[var(--text)]">
@@ -364,7 +364,7 @@ export function WalletConnectModal({
                 : null}
 
               {detectionState === "ready" && step === "accounts" && visibleAccounts.length === 0 ? (
-                <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/[0.03] px-4 py-8 text-center text-sm text-[var(--muted)]">
+                <div className="tv-panel-soft px-4 py-8 text-center text-sm text-[var(--muted)]">
                   No accounts are available for this wallet.
                 </div>
               ) : null}

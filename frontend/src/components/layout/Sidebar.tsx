@@ -28,7 +28,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 hidden shrink-0 border-r border-[var(--border)] bg-[var(--surface)] px-3 py-5 transition-all duration-300 lg:flex lg:flex-col",
+        "fixed inset-y-0 left-0 hidden shrink-0 border-r border-[rgba(57,255,136,0.10)] bg-[#050708] px-3 py-5 transition-all duration-300 lg:flex lg:flex-col",
         collapsed ? "w-[72px]" : "w-[240px]",
       )}
     >
@@ -65,8 +65,8 @@ export function Sidebar({
               className={cn(
                 "relative flex min-h-[48px] w-full items-center justify-between gap-2 rounded-[16px] px-3 py-[9px] text-left text-[13px] font-medium transition",
                 active
-                  ? "border border-[rgba(34,211,238,0.18)] bg-[var(--primary-soft)] text-[var(--text)]"
-                  : "border border-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--card)] hover:text-[var(--text)]",
+                  ? "border border-[rgba(57,255,136,0.18)] bg-[rgba(57,255,136,0.12)] text-[var(--primary)] shadow-[var(--shadow-glow)]"
+                  : "border border-transparent text-[var(--muted)] hover:border-[rgba(57,255,136,0.10)] hover:bg-[rgba(57,255,136,0.06)] hover:text-[var(--text)]",
               )}
             >
               {active ? (

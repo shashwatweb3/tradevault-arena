@@ -33,7 +33,7 @@ export function StepCards() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.24, delay: index * 0.08 }}
-            whileHover={{ y: -3, borderColor: "rgba(34,211,238,0.14)" }}
+            whileHover={{ y: -3, borderColor: "rgba(57,255,136,0.14)" }}
             className="rounded-[10px] border border-[var(--border-soft)] bg-[var(--sidebar)] p-[14px]"
           >
             <div className="flex items-center justify-between gap-3">

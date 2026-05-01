@@ -8,7 +8,7 @@ export function TopBar({
   right: ReactNode;
 }) {
   return (
-    <header className="tv-panel relative z-20 flex min-h-[64px] items-center justify-between gap-4 px-4 py-3 sm:px-5">
+    <header className="relative z-20 flex min-h-[64px] items-center justify-between gap-4 rounded-[var(--radius-xl)] border border-[rgba(57,255,136,0.10)] bg-[#050708] px-4 py-3 shadow-[var(--shadow-card)] sm:px-5">
       <h1 className="truncate text-[20px] font-semibold tracking-[-0.03em] text-[var(--text)] sm:text-[28px]">
         {title}
       </h1>

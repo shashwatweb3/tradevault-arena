@@ -2495,7 +2495,7 @@ function TournamentSelector({
             }}
             className={
               active
-                ? "inline-flex items-center gap-2 rounded-full border border-[rgba(34,211,238,0.2)] bg-[var(--primary-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)]"
+                ? "inline-flex items-center gap-2 rounded-full border border-[rgba(57,255,136,0.2)] bg-[var(--primary-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)]"
                 : "inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[#94A3B8] transition hover:text-[var(--text)]"
             }
           >
@@ -2755,7 +2755,7 @@ function Toast({
   const styles = {
     success: "border-[rgba(34,197,94,0.18)] bg-[rgba(34,197,94,0.12)] text-[var(--text)]",
     error: "border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--text)]",
-    info: "border-[rgba(34,211,238,0.18)] bg-[rgba(34,211,238,0.12)] text-[var(--text)]",
+    info: "border-[rgba(57,255,136,0.18)] bg-[rgba(57,255,136,0.12)] text-[var(--text)]",
   } satisfies Record<typeof tone, string>;
 
   return (
@@ -2868,7 +2868,7 @@ function Notice({
   children: ReactNode;
 }) {
   const styles = {
-    info: "border-[rgba(34,211,238,0.18)] bg-[rgba(34,211,238,0.12)] text-[var(--text)]",
+    info: "border-[rgba(57,255,136,0.18)] bg-[rgba(57,255,136,0.12)] text-[var(--text)]",
     warning: "border-[rgba(245,158,11,0.18)] bg-[rgba(245,158,11,0.12)] text-[var(--text)]",
     error: "border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--text)]",
   } satisfies Record<typeof tone, string>;

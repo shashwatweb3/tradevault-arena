@@ -61,7 +61,7 @@ export function LeaderboardPage({
               onClick={tab.onClick}
               className={
                 tab.active
-                  ? "tv-pill border-[rgba(34,211,238,0.22)] bg-[var(--primary-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)]"
+                  ? "tv-pill border-[rgba(57,255,136,0.22)] bg-[var(--primary-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)]"
                   : "tv-pill px-4 py-2 text-sm font-semibold text-[var(--muted)] transition hover:text-[var(--text)]"
               }
             >

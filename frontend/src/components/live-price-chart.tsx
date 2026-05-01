@@ -71,8 +71,8 @@ export function LivePriceChart({
         textColor: "#94A3B8",
       },
       grid: {
-        vertLines: { color: "rgba(255,255,255,0.06)" },
-        horzLines: { color: "rgba(255,255,255,0.06)" },
+        vertLines: { color: "rgba(57,255,136,0.08)" },
+        horzLines: { color: "rgba(57,255,136,0.08)" },
       },
       rightPriceScale: {
         borderVisible: false,
@@ -86,8 +86,8 @@ export function LivePriceChart({
         secondsVisible: false,
       },
       crosshair: {
-        vertLine: { color: "rgba(34, 211, 238, 0.45)", width: 1 },
-        horzLine: { color: "rgba(34, 211, 238, 0.2)", width: 1 },
+        vertLine: { color: "rgba(57,255,136,0.45)", width: 1 },
+        horzLine: { color: "rgba(57,255,136,0.2)", width: 1 },
       },
       handleScroll: {
         mouseWheel: true,
@@ -101,12 +101,12 @@ export function LivePriceChart({
     });
 
     const series = chart.addAreaSeries({
-      lineColor: "#22D3EE",
+      lineColor: "#39FF88",
       lineWidth: 2,
-      topColor: "rgba(34, 211, 238, 0.32)",
-      bottomColor: "rgba(34, 211, 238, 0.02)",
-      priceLineColor: "#22D3EE",
-      crosshairMarkerBackgroundColor: "#22D3EE",
+      topColor: "rgba(57,255,136,0.24)",
+      bottomColor: "rgba(57,255,136,0.02)",
+      priceLineColor: "#39FF88",
+      crosshairMarkerBackgroundColor: "#39FF88",
       lastValueVisible: true,
       priceLineVisible: true,
     });
@@ -183,7 +183,7 @@ export function LivePriceChart({
     if (tournamentPrice && tournamentPrice > 0n) {
       tournamentLineRef.current = series.createPriceLine({
         price: fromContractPrice(tournamentPrice),
-        color: "#8B5CF6",
+        color: "#A3FFCC",
         lineWidth: 2,
         lineStyle: 2,
         axisLabelVisible: true,
@@ -194,7 +194,7 @@ export function LivePriceChart({
     if (entryPrice && entryPrice > 0n) {
       entryLineRef.current = series.createPriceLine({
         price: fromContractPrice(entryPrice),
-        color: "#22C55E",
+        color: "#FBBF24",
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
@@ -227,12 +227,12 @@ export function LivePriceChart({
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2 text-right text-xs sm:text-sm">
-          <ChartLegend label="Live BTC" color="#22D3EE" />
+          <ChartLegend label="Live BTC" color="#39FF88" />
           {tournamentPrice && tournamentPrice > 0n ? (
-            <ChartLegend label={`Tournament ${formatChainUsdPrice(tournamentPrice)}`} color="#8B5CF6" />
+            <ChartLegend label={`Tournament ${formatChainUsdPrice(tournamentPrice)}`} color="#A3FFCC" />
           ) : null}
           {entryPrice && entryPrice > 0n ? (
-            <ChartLegend label={`Entry ${formatChainUsdPrice(entryPrice)}`} color="#22C55E" />
+            <ChartLegend label={`Entry ${formatChainUsdPrice(entryPrice)}`} color="#FBBF24" />
           ) : null}
         </div>
         <div className="grid grid-cols-3 gap-2 text-right text-xs sm:text-sm">

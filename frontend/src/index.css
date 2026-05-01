@@ -14,7 +14,8 @@
   body {
     @apply min-h-screen text-slate-100 antialiased;
     background:
-      radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 28rem),
+      radial-gradient(circle at 15% 0%, rgba(57,255,136,0.10), transparent 28rem),
+      radial-gradient(circle at 90% 80%, rgba(57,255,136,0.06), transparent 24rem),
       var(--bg);
     background-attachment: fixed;
     overflow-x: hidden;
@@ -41,7 +42,10 @@
 @layer components {
   .tv-shell {
     min-height: 100vh;
-    background: radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 28rem), var(--bg);
+    background:
+      radial-gradient(circle at 15% 0%, rgba(57,255,136,0.10), transparent 28rem),
+      radial-gradient(circle at 90% 80%, rgba(57,255,136,0.06), transparent 24rem),
+      var(--bg);
     color: var(--text);
   }
 
@@ -53,12 +57,12 @@
   .tv-panel {
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent), var(--card);
-    box-shadow: var(--shadow-card);
+    background: var(--card);
+    box-shadow: var(--shadow-card), var(--shadow-glow);
   }
 
   .tv-panel-soft {
-    border: 1px solid var(--border);
+    border: 1px solid rgba(57,255,136,0.08);
     border-radius: var(--radius-xl);
     background: var(--card-soft);
     box-shadow: var(--shadow-soft);
@@ -68,7 +72,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(57,255,136,0.14);
     border-radius: 9999px;
     background: var(--surface);
     color: var(--muted);
@@ -106,19 +110,24 @@
 
   .tv-action-primary {
     background: var(--primary);
-    color: #041018;
+    color: #020403;
     border: 1px solid transparent;
+    box-shadow: 0 0 18px rgba(57,255,136,0.28);
   }
 
   .tv-action-secondary {
     background: var(--surface);
     color: var(--text);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(57,255,136,0.12);
   }
 
   .tv-action-primary:hover,
   .tv-action-secondary:hover {
     transform: translateY(-1px);
+  }
+
+  .tv-action-primary:hover {
+    box-shadow: 0 0 28px rgba(57,255,136,0.42);
   }
 
   .tv-action-primary:active,
@@ -152,22 +161,22 @@
     @apply relative overflow-hidden backdrop-blur-2xl;
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent), var(--card);
-    box-shadow: var(--shadow-card);
+    background: var(--card);
+    box-shadow: var(--shadow-card), var(--shadow-glow);
   }
 
   .surface-card {
     @apply relative transition-all duration-300 backdrop-blur-xl;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--card);
+    background: var(--card);
     box-shadow: var(--shadow-soft);
   }
 
   .surface-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
-    border-color: rgba(34, 211, 238, 0.18);
+    border-color: rgba(57,255,136,0.18);
   }
 
   .surface-soft {
@@ -207,21 +216,22 @@
   }
 
   .input-base:focus {
-    border-color: rgba(34, 211, 238, 0.45);
+    border-color: rgba(57,255,136,0.45);
     background: var(--surface);
-    box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.12);
+    box-shadow: 0 0 0 2px rgba(57,255,136,0.12);
   }
 
   .button-primary {
     @apply inline-flex items-center justify-center px-5 py-2.5 text-[14px] font-bold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
     border-radius: 14px;
     background: var(--primary);
-    color: #041018;
-    box-shadow: none;
+    color: #020403;
+    box-shadow: 0 0 18px rgba(57,255,136,0.28);
   }
 
   .button-primary:not(:disabled):hover {
     transform: translateY(-1px);
+    box-shadow: 0 0 28px rgba(57,255,136,0.42);
   }
 
   .button-secondary {
@@ -234,7 +244,7 @@
 
   .button-secondary:not(:disabled):hover {
     transform: translateY(-1px);
-    border-color: rgba(34, 211, 238, 0.18);
+    border-color: rgba(57,255,136,0.18);
   }
 
   .button-light {
@@ -252,7 +262,8 @@
   .button-accent {
     @apply inline-flex items-center justify-center px-5 py-2.5 text-[14px] font-bold text-white transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
     border-radius: 14px;
-    background: #8b5cf6;
+    background: var(--accent);
+    color: #020403;
   }
 
   .button-accent:not(:disabled):hover {
@@ -263,13 +274,13 @@
     @apply relative overflow-hidden transition-all duration-300 backdrop-blur-2xl;
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent), var(--card);
-    box-shadow: var(--shadow-card);
+    background: var(--card);
+    box-shadow: var(--shadow-card), var(--shadow-glow);
   }
 
   .product-card:hover {
-    border-color: rgba(34, 211, 238, 0.2);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+    border-color: rgba(57,255,136,0.2);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22), 0 0 24px rgba(57,255,136,0.12);
   }
 
   .product-card-soft {

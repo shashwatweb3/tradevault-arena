@@ -34,7 +34,7 @@ export function GlowTable({
             transition={{ duration: 0.22, delay: index * 0.03 }}
             className={cn(
               "relative overflow-hidden rounded-[8px] border border-[var(--border-soft)] bg-[var(--panel)] px-4 py-4",
-              row.highlight && "border-l-[3px] border-l-[var(--primary)] bg-[rgba(34,211,238,0.08)]",
+              row.highlight && "border-l-[3px] border-l-[var(--primary)] bg-[rgba(57,255,136,0.08)]",
             )}
           >
             <div className="relative">{row.content}</div>

@@ -36,7 +36,7 @@ export function TournamentRow({
       animate={{ opacity: 1, y: 0 }}
       className={`tv-panel px-4 py-4 ${
         active
-          ? "border-[rgba(34,211,238,0.22)]"
+          ? "border-[rgba(57,255,136,0.22)]"
           : ""
       }`}
     >

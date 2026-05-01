@@ -47,7 +47,7 @@ export function ArenaCard({
         "relative overflow-hidden rounded-[12px] border bg-[var(--panel)] p-4",
         "border-[var(--border-soft)]",
         glow && "border-[rgba(34,197,94,0.18)]",
-        highlight && "ring-1 ring-[rgba(34,211,238,0.16)]",
+        highlight && "ring-1 ring-[rgba(57,255,136,0.16)]",
         className,
       )}
       {...props}

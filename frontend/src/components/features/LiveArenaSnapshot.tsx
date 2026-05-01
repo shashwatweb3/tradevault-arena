@@ -86,7 +86,7 @@ function getStatusStyles(kind: SnapshotStatusKind) {
   }
 
   if (kind === "soon") {
-    return "border-[rgba(59,130,246,0.18)] bg-[rgba(59,130,246,0.12)] text-[#60A5FA]";
+    return "border-[rgba(57,255,136,0.12)] bg-[rgba(57,255,136,0.06)] text-[var(--muted)]";
   }
 
   if (kind === "claim") {

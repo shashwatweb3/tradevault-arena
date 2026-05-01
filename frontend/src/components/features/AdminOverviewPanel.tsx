@@ -42,7 +42,7 @@ function OverviewIcon({ tone }: { tone: "default" | "warning" | "positive" }) {
 
 export function AdminAuditBadge({ label }: { label: string }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(34,211,238,0.12)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
+    <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(57,255,136,0.12)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
       <ShieldCheck size={12} />
       {label}
     </div>
