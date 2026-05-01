@@ -6,6 +6,8 @@ import {
   enableWallet,
   getInjectedWallets,
   getWalletOptionsFromInjected,
+  getWalletInstruction,
+  getWalletPermissionIssue,
   normalizeWalletErrorMessage,
   type WalletAccount,
   type EnabledWallet,
@@ -41,6 +43,8 @@ export function WalletConnectModal({
   const [selectedEnabledWallet, setSelectedEnabledWallet] = useState<EnabledWallet | null>(null);
   const [selectedAccounts, setSelectedAccounts] = useState<WalletAccount[]>([]);
   const [emptyStateMessage, setEmptyStateMessage] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectErrorWallet, setConnectErrorWallet] = useState<WalletOption | null>(null);
   const [step, setStep] = useState<ModalStep>("wallets");
   const detectionStartedRef = useRef(false);
   const connectInFlightRef = useRef(false);
@@ -67,6 +71,8 @@ export function WalletConnectModal({
     setSelectedEnabledWallet(null);
     setSelectedAccounts([]);
     setEmptyStateMessage(null);
+    setConnectError(null);
+    setConnectErrorWallet(null);
     setStep("wallets");
   }, [clearDetectionTimers]);
 
@@ -93,6 +99,8 @@ export function WalletConnectModal({
     detectionStartedRef.current = true;
     setDetectionState("checking");
     setEmptyStateMessage(null);
+    setConnectError(null);
+    setConnectErrorWallet(null);
 
     const attempts = [0, 500, 1000];
 
@@ -141,11 +149,16 @@ export function WalletConnectModal({
 
     connectInFlightRef.current = true;
     setSubmittingKey(wallet.source);
+    setConnectError(null);
+    setConnectErrorWallet(wallet);
     try {
       const enabled = await enableWallet(wallet.source);
       await handleEnabledWallet(wallet, enabled);
     } catch (error) {
-      onErrorRef.current(normalizeWalletErrorMessage(error, wallet.name));
+      const message = normalizeWalletErrorMessage(error, wallet.name);
+      setConnectError(message);
+      setConnectErrorWallet(wallet);
+      onErrorRef.current(message);
     } finally {
       connectInFlightRef.current = false;
       setSubmittingKey(null);
@@ -165,7 +178,10 @@ export function WalletConnectModal({
 
   const handleEnabledWallet = async (wallet: WalletOption, enabled: EnabledWallet) => {
     if (enabled.accounts.length === 0) {
-      onErrorRef.current(`No accounts found in ${wallet.name}. Open the extension, unlock it, and select an account.`);
+      const message = "No accounts found or this site is not approved in your wallet. Unlock your wallet, allow this site, then retry.";
+      setConnectError(message);
+      setConnectErrorWallet(wallet);
+      onErrorRef.current(message);
       return;
     }
 
@@ -195,6 +211,9 @@ export function WalletConnectModal({
       setSubmittingKey(null);
     }
   };
+
+  const errorInstruction = connectErrorWallet ? getWalletInstruction(connectErrorWallet.source) : null;
+  const permissionIssue = connectError ? getWalletPermissionIssue(connectError) : null;
 
   return (
     <AnimatePresence>
@@ -252,6 +271,38 @@ export function WalletConnectModal({
             ) : null}
 
             <div className="mt-6 space-y-3">
+              {connectError ? (
+                <div className="tv-panel-soft px-4 py-5 text-sm leading-6 text-[var(--muted)]">
+                  <p className="text-base font-semibold text-[var(--text)]">
+                    {permissionIssue === "permission_blocked" ? "Wallet permission blocked" : "Wallet connection failed"}
+                  </p>
+                  <p className="mt-2">{connectError}</p>
+                  {errorInstruction ? <p className="mt-2">{errorInstruction}</p> : null}
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (connectErrorWallet) {
+                          void handleWalletSelect(connectErrorWallet);
+                          return;
+                        }
+                        handleRetry();
+                      }}
+                      className="tv-action-secondary text-sm"
+                    >
+                      Retry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="tv-action-secondary text-sm text-[var(--muted)]"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {detectionState === "checking" ? (
                 <div className="tv-panel-soft px-4 py-8 text-center text-sm text-[var(--muted)]">
                   Checking wallet extensions...
@@ -314,6 +365,11 @@ export function WalletConnectModal({
                                 ? "Extension detected. Click to authorize access and choose an account."
                                 : "Extension not installed in this browser."}
                           </div>
+                          {wallet.accountCount > 0 ? (
+                            <div className="mt-1 text-xs text-[var(--muted-dark)]">
+                              {wallet.accountCount} account{wallet.accountCount === 1 ? "" : "s"} ready
+                            </div>
+                          ) : null}
                         </div>
                         <div
                           className={`tv-pill shrink-0 px-3 py-1 text-xs font-semibold ${

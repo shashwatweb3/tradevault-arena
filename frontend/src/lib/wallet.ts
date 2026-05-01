@@ -49,6 +49,8 @@ export type EnabledWallet = {
   source: string;
 };
 
+export type WalletPermissionIssue = "permission_blocked" | "no_accounts";
+
 export type InjectedWalletInfo = {
   key: string;
   name: string;
@@ -92,6 +94,12 @@ export { toVaraAddress };
 function injectedRegistry(): Record<string, InjectedWindowProvider> {
   if (typeof window === "undefined") return {};
   return window.injectedWeb3 ?? {};
+}
+
+function logWalletDebug(label: string, value: unknown) {
+  if (import.meta.env.DEV) {
+    console.log(`[wallet] ${label}`, value);
+  }
 }
 
 function normalizeWalletId(value: string): string {
@@ -160,6 +168,15 @@ export function normalizeWalletErrorMessage(error: unknown, source?: string): st
   const normalized = message.toLowerCase();
 
   if (
+    normalized.includes("not allowed to interact")
+    || normalized.includes("not authorized")
+    || normalized.includes("permission")
+    || normalized.includes("source")
+  ) {
+    return "Wallet permission blocked for this site. Open your wallet extension and allow this website, then try again.";
+  }
+
+  if (
     normalized.includes("not available")
     || normalized.includes("not found")
     || normalized.includes("no extension")
@@ -182,9 +199,7 @@ export function normalizeWalletErrorMessage(error: unknown, source?: string): st
     || normalized.includes("no accounts")
     || normalized.includes("account not found")
   ) {
-    return source
-      ? `No accounts found in ${source}. Open the extension, unlock it, and select an account.`
-      : "No accounts found. Open the wallet extension, unlock it, and select an account.";
+    return "No accounts found or this site is not approved in your wallet. Unlock your wallet, allow this site, then retry.";
   }
 
   return message || fallback;
@@ -192,7 +207,49 @@ export function normalizeWalletErrorMessage(error: unknown, source?: string): st
 
 async function requestExtensionAccess() {
   const extensions = await web3Enable(APP_NAME);
+  logWalletDebug("enabled", extensions);
   return extensions;
+}
+
+export function getWalletPermissionIssue(error: unknown): WalletPermissionIssue | null {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("not allowed to interact")
+    || normalized.includes("not authorized")
+    || normalized.includes("permission")
+    || normalized.includes("source")
+  ) {
+    return "permission_blocked";
+  }
+
+  if (
+    normalized.includes("no accounts found or this site is not approved")
+    || normalized.includes("no account")
+    || normalized.includes("no accounts")
+  ) {
+    return "no_accounts";
+  }
+
+  return null;
+}
+
+export function getWalletInstruction(source: string): string | null {
+  if (source === "subwallet-js") {
+    return "Open SubWallet extension → Settings/Connected sites → allow tradevault-arena-7ddv.vercel.app, or disconnect and reconnect this site.";
+  }
+
+  if (source === "polkadot-js") {
+    return "Open Polkadot.js extension → authorize this website → select an account.";
+  }
+
+  return null;
 }
 
 function getSupportedInjectedWalletMap(injectedWallets: InjectedWalletInfo[]) {
@@ -251,15 +308,19 @@ export async function enableWallet(source: string): Promise<EnabledWallet> {
       throw new Error(`Wallet "${source}" is not available.`);
     }
 
+    logWalletDebug("injected", injectedRegistry());
     await requestExtensionAccess();
 
     const accounts = (await web3Accounts()).map((account) =>
       normalizeAccount(account as InjectedAccountLike),
     );
+    logWalletDebug("accounts", accounts);
     const sourceAccounts = accounts.filter((account) => account.meta.source === source);
 
     if (sourceAccounts.length === 0) {
-      throw new Error(`No accounts found in "${target.name}".`);
+      throw new Error(
+        `No accounts found or this site is not approved in your wallet. Unlock your wallet, allow this site, then retry.`,
+      );
     }
 
     const injector = await web3FromSource(source);
