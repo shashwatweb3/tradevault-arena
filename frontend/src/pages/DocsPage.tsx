@@ -144,6 +144,7 @@ function MermaidBlock({ code }: { code: string }) {
   const renderId = useId().replace(/:/g, "-");
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const diagramLayout = useMemo(() => getDiagramLayout(code), [code]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,11 +200,11 @@ function MermaidBlock({ code }: { code: string }) {
         {svg ? (
           <div
             ref={containerRef}
-            className="min-w-[640px] [&_svg]:h-auto [&_svg]:max-w-none [&_svg]:min-w-[640px]"
+            className={diagramLayout.wrapperClassName}
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (
-          <div className="flex min-h-[220px] min-w-[640px] items-center justify-center rounded-[12px] border border-[var(--border-soft)] bg-[rgba(255,255,255,0.02)] text-sm text-[var(--muted)]">
+          <div className={`flex min-h-[220px] ${diagramLayout.loadingClassName} items-center justify-center rounded-[12px] border border-[var(--border-soft)] bg-[rgba(255,255,255,0.02)] text-sm text-[var(--muted)]`}>
             Rendering diagram...
           </div>
         )}
@@ -387,6 +388,32 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function getDiagramLayout(code: string) {
+  const normalized = code.trim().toLowerCase();
+
+  if (normalized.startsWith("sequencediagram")) {
+    return {
+      wrapperClassName:
+        "mx-auto min-w-[520px] max-w-[980px] [&_svg]:h-auto [&_svg]:w-full [&_svg]:min-w-[520px] [&_svg]:max-w-[980px]",
+      loadingClassName: "min-w-[520px]",
+    };
+  }
+
+  if (normalized.startsWith("flowchart") || normalized.startsWith("statediagram")) {
+    return {
+      wrapperClassName:
+        "mx-auto w-full min-w-[280px] max-w-[860px] [&_svg]:h-auto [&_svg]:w-full [&_svg]:min-w-[280px] [&_svg]:max-w-[860px]",
+      loadingClassName: "min-w-[280px]",
+    };
+  }
+
+  return {
+    wrapperClassName:
+      "mx-auto w-full min-w-[320px] max-w-[900px] [&_svg]:h-auto [&_svg]:w-full [&_svg]:min-w-[320px] [&_svg]:max-w-[900px]",
+    loadingClassName: "min-w-[320px]",
+  };
 }
 
 async function getMermaid() {
