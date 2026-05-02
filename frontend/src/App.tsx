@@ -104,6 +104,7 @@ import { TradePage } from "@/pages/TradePage";
 import { LeaderboardPage } from "@/pages/LeaderboardPage";
 import { VaultPage } from "@/pages/VaultPage";
 import { AdminPage } from "@/pages/AdminPage";
+import { DocsPage } from "@/pages/DocsPage";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -118,9 +119,6 @@ const stagger = {
 const CREATE_TOURNAMENT_START_BUFFER_SECONDS = 60;
 const CREATE_TOURNAMENT_MIN_DURATION_SECONDS = 5 * 60;
 const CREATE_TOURNAMENT_MAX_DURATION_SECONDS = 30 * 24 * 60 * 60;
-const DOCS_URL =
-  "https://github.com/shashwatweb3/tradevault-arena/blob/master/docs/TRADEVAULT_ARENA_OVERVIEW.md";
-
 const defaultCreateForm = () => ({
   name: "Weekend BTC Sprint",
   entryFee: "5",
@@ -131,7 +129,7 @@ const defaultCreateForm = () => ({
 });
 
 type AppRoute = {
-  page: "home" | "tournaments" | "leaderboard" | "vault" | "rewards" | "admin" | "tournament" | "trade";
+  page: "home" | "tournaments" | "leaderboard" | "vault" | "rewards" | "admin" | "docs" | "tournament" | "trade";
   tournamentId?: string;
 };
 
@@ -1086,7 +1084,7 @@ export function App() {
   }
 
   function handleOpenDocs() {
-    window.open(DOCS_URL, "_blank", "noopener,noreferrer");
+    setRoute({ page: "docs" });
   }
 
   function parseKeeperAddressInput() {
@@ -1159,6 +1157,8 @@ export function App() {
           ? tradeViewTournament?.name ?? "Trade"
         : route.page === "leaderboard"
             ? "Leaderboard"
+            : route.page === "docs"
+              ? "Documentation"
             : route.page === "vault" || route.page === "rewards"
               ? "My Vault"
               : "Admin";
@@ -1181,6 +1181,7 @@ export function App() {
     { key: "trade", label: "Trade", icon: <BarChart3 size={16} />, onClick: () => setRoute(tradeRoute) },
     { key: "leaderboard", label: "Leaderboard", icon: <Trophy size={16} />, onClick: () => setRoute({ page: "leaderboard" }) },
     { key: "vault", label: "My Vault", icon: <WalletCards size={16} />, onClick: () => setRoute({ page: "vault" }) },
+    { key: "docs", label: "Docs", icon: <BookOpen size={16} />, onClick: () => setRoute({ page: "docs" }) },
     ...(isAdmin ? [{ key: "admin", label: "Admin", badge: "Admin", icon: <ShieldCheck size={16} />, onClick: () => setRoute({ page: "admin" }) }] : []),
   ];
 
@@ -2600,6 +2601,8 @@ export function App() {
           lifecyclePanel={adminLifecyclePanel}
         />
       )
+    ) : route.page === "docs" ? (
+      <DocsPage />
     ) : null;
 
   return (
@@ -3685,34 +3688,42 @@ function useNow() {
 }
 
 function useHashRoute(): [AppRoute, (route: AppRoute) => void] {
-  const [route, setRouteState] = useState<AppRoute>(() => parseHashRoute(window.location.hash));
+  const [route, setRouteState] = useState<AppRoute>(() => parseCurrentRoute(window.location));
 
   useEffect(() => {
-    const onHashChange = () => setRouteState(parseHashRoute(window.location.hash));
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    const onRouteChange = () => setRouteState(parseCurrentRoute(window.location));
+    window.addEventListener("hashchange", onRouteChange);
+    window.addEventListener("popstate", onRouteChange);
+    return () => {
+      window.removeEventListener("hashchange", onRouteChange);
+      window.removeEventListener("popstate", onRouteChange);
+    };
   }, []);
 
   const setRoute = (next: AppRoute) => {
-    const hash = toHashRoute(next);
+    const path = toAppRoutePath(next);
     setRouteState(next);
-    if (window.location.hash !== hash) {
-      window.location.hash = hash;
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    if (currentPath !== path || window.location.hash) {
+      window.history.pushState({}, "", path);
     }
   };
 
   return [route, setRoute];
 }
 
-function parseHashRoute(hash: string): AppRoute {
-  const normalized = normalizeHashPath(hash);
-
-  if (normalized === "/" || normalized === "/home") {
-    return { page: "home" };
+function parseCurrentRoute(locationLike: { pathname: string; hash: string }): AppRoute {
+  const pathname = normalizePath(locationLike.pathname);
+  if (pathname !== "/") {
+    return parseRoutePath(pathname);
   }
 
-  if (normalized === "/trade") {
-    return { page: "trade" };
+  return parseRoutePath(normalizeHashPath(locationLike.hash));
+}
+
+function parseRoutePath(normalized: string): AppRoute {
+  if (normalized === "/" || normalized === "/home") {
+    return { page: "home" };
   }
 
   if (normalized.startsWith("/trade/")) {
@@ -3737,6 +3748,8 @@ function parseHashRoute(hash: string): AppRoute {
       return { page: "trade" };
     case "/leaderboard":
       return { page: "leaderboard" };
+    case "/docs":
+      return { page: "docs" };
     case "/rewards":
       return { page: "rewards" };
     case "/vault":
@@ -3760,24 +3773,35 @@ function normalizeHashPath(hash: string): string {
   return collapsed.endsWith("/") ? collapsed.slice(0, -1) : collapsed;
 }
 
-function toHashRoute(route: AppRoute): string {
+function normalizePath(pathname: string): string {
+  const raw = pathname.trim() || "/";
+  const withLeadingSlash = raw.startsWith("/") ? raw : `/${raw}`;
+  const collapsed = withLeadingSlash.replace(/\/{2,}/g, "/");
+
+  if (collapsed === "/") return "/";
+  return collapsed.endsWith("/") ? collapsed.slice(0, -1) : collapsed;
+}
+
+function toAppRoutePath(route: AppRoute): string {
   switch (route.page) {
     case "tournaments":
-      return "#/tournaments";
+      return "/tournaments";
     case "leaderboard":
-      return "#/leaderboard";
+      return "/leaderboard";
+    case "docs":
+      return "/docs";
     case "rewards":
-      return "#/rewards";
+      return "/rewards";
     case "vault":
-      return "#/vault";
+      return "/vault";
     case "admin":
-      return "#/admin";
+      return "/admin";
     case "trade":
-      return route.tournamentId ? `#/trade/${route.tournamentId}` : "#/trade";
+      return route.tournamentId ? `/trade/${route.tournamentId}` : "/trade";
     case "tournament":
-      return route.tournamentId ? `#/trade/${route.tournamentId}` : "#/trade";
+      return route.tournamentId ? `/trade/${route.tournamentId}` : "/trade";
     default:
-      return "#/";
+      return "/";
   }
 }
 
