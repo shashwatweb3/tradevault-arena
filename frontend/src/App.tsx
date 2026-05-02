@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   RocketLaunch,
 } from "@phosphor-icons/react";
-import { BarChart3, Home, LayoutDashboard, ShieldCheck, Trophy, WalletCards } from "lucide-react";
+import { BarChart3, BookOpen, Home, LayoutDashboard, ShieldCheck, Trophy, WalletCards } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CloseReason,
@@ -118,6 +118,8 @@ const stagger = {
 const CREATE_TOURNAMENT_START_BUFFER_SECONDS = 60;
 const CREATE_TOURNAMENT_MIN_DURATION_SECONDS = 5 * 60;
 const CREATE_TOURNAMENT_MAX_DURATION_SECONDS = 30 * 24 * 60 * 60;
+const DOCS_URL =
+  "https://github.com/shashwatweb3/tradevault-arena/blob/master/docs/TRADEVAULT_ARENA_OVERVIEW.md";
 
 const defaultCreateForm = () => ({
   name: "Weekend BTC Sprint",
@@ -1081,6 +1083,10 @@ export function App() {
         successMessage: "Tournament settled.",
       },
     );
+  }
+
+  function handleOpenDocs() {
+    window.open(DOCS_URL, "_blank", "noopener,noreferrer");
   }
 
   function parseKeeperAddressInput() {
@@ -2652,6 +2658,14 @@ export function App() {
                     change={`${livePriceChange24h >= 0 ? "+" : ""}${livePriceChange24h.toFixed(2)}%`}
                   />
                 </div>
+                <Button
+                  variant="ghost"
+                  onClick={handleOpenDocs}
+                  className="gap-2 whitespace-nowrap px-3"
+                >
+                  <BookOpen size={16} />
+                  Docs
+                </Button>
                 {!account ? (
                   <div className="relative z-40 shrink-0 pointer-events-auto">
                     <Button
