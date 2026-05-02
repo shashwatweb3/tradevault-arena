@@ -8,7 +8,8 @@ type MarkdownBlock =
   | { type: "unordered-list"; items: string[] }
   | { type: "ordered-list"; items: { title: string; details: string[] }[] }
   | { type: "code"; code: string; language: string }
-  | { type: "table"; rows: string[][] };
+  | { type: "table"; rows: string[][] }
+  | { type: "details"; summary: string; blocks: MarkdownBlock[] };
 
 export function DocsPage() {
   const blocks = useMemo(() => parseMarkdown(overviewMarkdown), []);
@@ -55,6 +56,31 @@ function parseMarkdown(markdown: string): MarkdownBlock[] {
       }
       if (index < lines.length) index += 1;
       blocks.push({ type: "code", code: code.join("\n"), language });
+      continue;
+    }
+
+    if (trimmed === "<details>") {
+      const summaryLine = (lines[index + 1] ?? "").trim();
+      const summaryMatch = summaryLine.match(/^<summary>(.*)<\/summary>$/);
+      const summary = summaryMatch?.[1]?.trim() || "Details";
+
+      index += summaryMatch ? 2 : 1;
+      const nestedLines: string[] = [];
+
+      while (index < lines.length && (lines[index] ?? "").trim() !== "</details>") {
+        nestedLines.push(lines[index] ?? "");
+        index += 1;
+      }
+
+      if (index < lines.length) {
+        index += 1;
+      }
+
+      blocks.push({
+        type: "details",
+        summary,
+        blocks: parseMarkdown(nestedLines.join("\n")),
+      });
       continue;
     }
 
@@ -286,6 +312,21 @@ function renderBlock(block: MarkdownBlock, index: number) {
         </div>
       );
     }
+
+    case "details":
+      return (
+        <details
+          key={index}
+          className="overflow-hidden rounded-[18px] border border-[var(--border-soft)] bg-[rgba(255,255,255,0.02)]"
+        >
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text)] marker:hidden">
+            {block.summary}
+          </summary>
+          <div className="space-y-5 border-t border-[var(--border-soft)] px-4 py-4 sm:px-5">
+            {block.blocks.map(renderBlock)}
+          </div>
+        </details>
+      );
   }
 }
 

@@ -1,153 +1,244 @@
-# TradeVault Arena Overview
+# TradeVault Arena
 
 TradeVault Arena is an on-chain BTC trading tournament platform where users trade with virtual balances and compete for real on-chain VARA prize pools.
 
+**What it does:** runs time-bound synthetic BTC/USD tournaments with on-chain entry fees, leaderboard logic, settlement, and claimable rewards.
+
+**Why it matters:** most trading competitions rely on private databases and manual prize handling. TradeVault Arena moves the core tournament rules and rewards on-chain while keeping trading simple enough for an MVP.
+
+**Status:** `MVP` `Vara Testnet` `Keeper-Based Price Feed` `On-Chain Settlement`
+
+## Snapshot
+
+| Area | Current MVP |
+| --- | --- |
+| Network | Vara Testnet |
+| Trading Type | Synthetic BTC/USD |
+| Rewards | Real VARA prize pool |
+| Price Feed | Keeper-based |
+| Settlement | Smart contract |
+| Wallets | SubWallet / Polkadot.js / Talisman / Enkrypt |
+| Frontend | React + TypeScript + Vite |
+| Contract | Rust + Sails.rs |
+
+| Part | On-chain? | Notes |
+| --- | --- | --- |
+| Entry fee | Yes | Paid into prize pool |
+| Virtual balance | Yes | Stored in contract |
+| Position | Yes | Long/Short + size + SL/TP |
+| PnL | Yes | Based on posted tournament price |
+| Leaderboard | Yes | Calculated from contract state |
+| Settlement | Yes | Winners and rewards |
+| BTC price source | No | Posted by keeper/oracle |
+| UI chart | No | Binance preview |
+
 ## 1. Project Overview
 
-### What TradeVault Arena Is
+TradeVault Arena is a tournament-based trading application built on Vara Network.
 
-TradeVault Arena is a tournament-based trading application built on Vara Network. Users join a time-bound BTC/USD arena by paying a real entry fee in VARA. Inside the arena, they do not trade real BTC. Instead, they trade synthetic BTC positions using equal virtual balances. At the end of the tournament, the best-performing traders are rewarded from a real on-chain prize pool managed by a smart contract.
+- Users join a BTC/USD arena by paying a real VARA entry fee.
+- Everyone starts with the same virtual trading balance.
+- Traders open synthetic Long or Short BTC positions.
+- The contract tracks performance by Return %.
+- Winners receive real on-chain VARA rewards from the shared prize pool.
 
-This means:
+This is not real BTC trading.
 
-- trading is synthetic or paper trading
-- prize distribution is real and on-chain
-- tournament rules are enforced by contract logic
-- rankings are based on transparent contract state rather than a private database
+- Trading is synthetic or paper trading.
+- Prize pools and payouts are real on-chain VARA.
+- Tournament accounting, PnL, ranking, SL/TP checks, settlement, and claims are contract-managed.
 
 ### Who It Is For
 
-TradeVault Arena is intended for:
+- Beginner traders who want lower-risk practice.
+- Crypto communities running trading competitions.
+- Web3 ecosystems running gamified onboarding.
+- Traders who want verifiable performance history.
+- Projects that want tournament-based engagement.
+- Builders, judges, and ecosystem teams evaluating Vara consumer apps.
 
-- users who want competitive but lower-risk trading practice
-- communities that want transparent trading competitions
-- ecosystem teams that want gamified onboarding
-- builders exploring on-chain competition formats
-- judges, partners, and ecosystem teams evaluating consumer-facing Vara use cases
+### Simple Example
 
-### Why It Exists
-
-Most paper trading competitions are easy to run, but difficult to trust. They usually depend on a centralized backend to track balances, rank users, and distribute rewards. TradeVault Arena exists to move the critical tournament logic into a smart contract while keeping the trading experience simple enough for an MVP.
-
-### Simple Example User Journey
-
-1. A user connects a Vara-compatible wallet.
-2. The user joins a BTC tournament by paying the entry fee.
-3. The user receives the same virtual starting balance as every other participant.
-4. The user opens a synthetic Long or Short BTC position.
+1. A user connects a Vara wallet.
+2. The user joins an upcoming tournament with VARA.
+3. The tournament starts with equal virtual balances for all players.
+4. The user opens a synthetic BTC Long or Short.
 5. A keeper posts BTC price updates on-chain.
-6. The contract recalculates PnL and updates the leaderboard.
-7. When the tournament ends, the contract settles winners.
-8. Winning users claim their VARA rewards on-chain.
+6. The contract updates PnL, SL/TP, and leaderboard state.
+7. The tournament ends and winners are settled.
+8. Winning users claim VARA rewards.
 
 ## 2. Problem Statement
 
-Existing trading competitions often have structural trust problems:
+Most trading competitions are easy to launch but hard to trust.
 
-- Centralized databases control tournament state, balances, and rankings.
-- Users cannot independently verify whether leaderboard updates were fair.
-- Fake leaderboard manipulation is easier when all logic is off-chain.
-- Prize handling is often manual and operator-dependent.
-- Paper trading results rarely create a verifiable on-chain reputation.
-- Many trading competitions have no meaningful economic outcome beyond screenshots and bragging rights.
+- Leaderboards usually depend on centralized databases.
+- Users cannot independently verify whether rankings were fair.
+- Operators can manually adjust scores or prize decisions.
+- Prize distribution is often handled off-chain and manually.
+- Paper trading rarely produces a verifiable on-chain record.
+- Many competitions offer no meaningful reward beyond screenshots.
 
-In short, paper trading is accessible, but usually not transparent. On-chain rewards are attractive, but most tournament products still rely on centralized scoring infrastructure.
+TradeVault Arena exists to make tournament logic and prize handling more transparent without pretending the current MVP is fully decentralized.
 
 ## 3. Proposed Solution
 
 TradeVault Arena combines simple synthetic trading with on-chain tournament accounting.
 
-Core design:
+- Tournaments are time-bound.
+- Users pay real entry fees.
+- Entry fees form one shared prize pool.
+- Every participant starts with the same virtual capital.
+- Trading is synthetic BTC/USD, not spot or perp execution.
+- Ranking is derived from contract state.
+- Settlement is handled by the contract.
+- Winners claim rewards directly on-chain.
 
-- tournaments are time-bound
-- users pay real entry fees
-- entry fees form one shared prize pool
-- every participant starts with the same virtual balance
-- users trade synthetic BTC/USD positions
-- the leaderboard is derived from contract state
-- settlement is performed by the contract
-- winners claim rewards directly from on-chain state
+## 4. How It Works
 
-The design goal is not to simulate a full exchange. The design goal is to create a transparent competitive arena where the rules, ranking logic, and rewards are contract-managed.
+1. **Create tournament**  
+   Admin defines start time, end time, entry fee, participant cap, and starting balance.
+2. **Join tournament**  
+   Users pay the entry fee before the arena starts.
+3. **Start with virtual balance**  
+   Every participant begins with equal synthetic capital.
+4. **Open Long or Short BTC position**  
+   Users trade based on the tournament price stored on-chain.
+5. **Optional Stop Loss / Take Profit**  
+   SL/TP levels are stored with the position.
+6. **Keeper updates tournament price**  
+   A server-side keeper fetches BTC/USDT and posts it on-chain.
+7. **Contract updates PnL and leaderboard**  
+   The contract recalculates tournament state.
+8. **Tournament ends**  
+   End-of-tournament conditions are reached.
+9. **Winners are settled**  
+   Rewards are assigned in contract state.
+10. **Rewards are claimed**  
+   Winners call `ClaimReward`.
 
-## 4. Who It Is For
+## 5. Flows
 
-TradeVault Arena is designed for several groups:
+### User Flow
 
-- Beginner traders who want risk-reduced practice without trading real BTC.
-- Crypto communities that want structured, transparent trading competitions.
-- Web3 ecosystems that want onboarding experiences tied to wallets, on-chain rewards, and public competition state.
-- Traders who want a verifiable performance history rather than a private leaderboard screenshot.
-- Projects or DAOs looking for tournament-based engagement loops.
+```mermaid
+flowchart TD
+  A[Connect Wallet] --> B[Choose Tournament]
+  B --> C[Join with VARA]
+  C --> D[Open Long or Short]
+  D --> E[Track PnL and Leaderboard]
+  E --> F[Tournament Ends]
+  F --> G[Claim Rewards]
+```
 
-## 5. How It Works
+- Connect a Vara-compatible wallet.
+- Browse upcoming, live, ended, or settled tournaments.
+- Join before start time.
+- Open a synthetic Long or Short BTC position.
+- Track PnL, ranking, and price freshness.
+- Claim rewards after settlement if eligible.
 
-### Step-by-Step
+### Admin Flow
 
-1. Create tournament
-   - An admin creates a BTC/USD arena with a start time, end time, entry fee, participant cap, and equal starting balance.
-2. Join tournament
-   - Users pay the exact entry fee to enter before the arena starts.
-3. Start with virtual balance
-   - Every participant begins with the same synthetic capital.
-4. Open Long or Short BTC position
-   - Users open a synthetic BTC trade based on the tournament price.
-5. Optional Stop Loss / Take Profit
-   - Users can provide SL/TP levels when opening a position.
-6. Keeper updates tournament price
-   - A server-side keeper fetches BTC price data and posts it on-chain.
-7. Contract updates PnL and leaderboard
-   - The contract recalculates unrealized or realized results and reorders ranking by return percentage.
-8. Tournament ends
-   - When the end time is reached, the contract can freeze the final tournament state.
-9. Winners are settled
-   - The contract computes the winners and assigns claimable rewards.
-10. Rewards are claimed
-   - Winners claim VARA from contract-managed reward state.
+- Create tournaments.
+- Monitor tournament state.
+- Manage fallback lifecycle actions.
+- Manually sync and process tournaments if automation fails.
+- Settle as fallback if needed.
+- Manage keeper wallets in the keeper-role architecture.
 
-## 6. User Flow
+### Demo Flow
 
-The user flow is intentionally simple:
+1. Open the app.
+2. Connect wallet.
+3. Join tournament.
+4. Admin or keeper syncs price on-chain.
+5. Open Long or Short.
+6. Watch PnL and leaderboard update.
+7. Trigger SL/TP or wait for the end.
+8. Settle tournament.
+9. Claim reward.
 
-- Connect wallet
-  - Users connect a Vara-compatible wallet in the frontend.
-- Browse tournaments
-  - Users review upcoming, live, ended, or settled arenas.
-- Join
-  - Users pay the entry fee to reserve a slot.
-- Trade
-  - Users open a synthetic Long or Short BTC position.
-- Track PnL
-  - Users see their current position, unrealized PnL, and final value.
-- Track leaderboard
-  - Users compare performance with other participants.
-- Claim rewards
-  - After settlement, winners claim real VARA rewards.
+## 6. Architecture
 
-## 7. Admin Flow
+### System Architecture
 
-Current admin responsibilities are:
+```mermaid
+flowchart LR
+  Binance[Binance BTC/USDT Price] --> Keeper[Keeper Service]
+  Keeper --> Contract[Vara Smart Contract]
+  Contract --> Frontend[Frontend Reads State]
+  User[User Wallet] --> Frontend
+  Frontend --> Contract
+```
 
-- create tournament
-- monitor tournament status
-- manage fallback lifecycle actions
-- manually sync and process the tournament if automation fails
-- settle as a fallback when needed
-- manage keeper wallets in the newer keeper-role architecture
+### Keeper Tick Sequence
 
-In the current direction of the project, the admin should not be the normal path for frequent price syncing. The preferred path is a dedicated keeper service.
+```mermaid
+sequenceDiagram
+  participant K as Keeper
+  participant B as Binance
+  participant C as Vara Contract
+  participant F as Frontend
 
-## 8. Trading Model
+  K->>B: Fetch BTC/USDT price
+  K->>C: KeeperTick(tournamentId, price)
+  C->>C: Update price
+  C->>C: Check SL/TP
+  C->>C: End or settle if needed
+  F->>C: Read tournament state
+```
+
+### Tournament Lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> Upcoming
+  Upcoming --> Active: start_time reached
+  Active --> Ended: end_time reached
+  Ended --> Settled: keeper/admin settles
+  Settled --> Claimed: winners claim rewards
+```
+
+## 7. On-Chain and Off-Chain Split
+
+### On-Chain Responsibilities
+
+- Tournament creation
+- Joining and prize-pool accounting
+- Position opening and closing
+- SL/TP storage and execution checks
+- PnL calculation
+- Leaderboard calculation
+- Tournament end and settlement
+- Claimable reward tracking
+- Reward claiming
+- Event emission
+
+### Off-Chain Responsibilities
+
+- Frontend UI and wallet connection
+- Binance live BTC price preview
+- Keeper service for price posting
+- Operational monitoring and fallback actions
+- IDL/client integration for contract calls
+
+### Frontend Rule
+
+- Frontend reads state and signs user/admin actions.
+- Frontend should not auto-sign keeper writes.
+- Users should never be responsible for posting tournament prices.
+
+<details>
+<summary>Trading Model</summary>
 
 ### Core Model
 
-TradeVault Arena uses synthetic BTC/USD trading:
-
-- there is no real DEX execution
-- there is no real BTC custody
-- positions are simulated using price updates pushed on-chain
-- the current MVP supports one open position per participant at a time
-- no leverage is part of the MVP
+- Trading is synthetic BTC/USD.
+- There is no real BTC custody.
+- There is no DEX execution in the MVP.
+- The current MVP keeps the state model simple with one open position per participant at a time.
+- No leverage is part of the MVP unless explicitly added later.
 
 ### PnL Formulas
 
@@ -177,27 +268,19 @@ return_percentage = ((final_value - initial_virtual_balance) / initial_virtual_b
 
 ### Stop Loss / Take Profit
 
-SL/TP is stored on-chain with the position. When the keeper posts a new tournament price, the contract checks whether a stop loss or take profit level has been hit and can auto-close the position accordingly.
+- SL/TP is stored on-chain with each position.
+- When a new tournament price is posted, the contract checks whether SL or TP has been hit.
+- Matching positions can be auto-closed during keeper processing.
 
-## 9. Prize Pool and Settlement
+</details>
 
-TradeVault Arena uses a real on-chain prize pool:
+## 8. Prize Pool and Settlement
 
-- every participant pays the entry fee
-- the contract accumulates the entry fees into the tournament prize pool
-- top performers receive rewards after settlement
-- the current default split is 60% / 30% / 10% for first, second, and third place
-
-Settlement process:
-
-- the tournament reaches end time
-- the contract finalizes ranking
-- winner rewards are assigned in contract state
-- winners later call `ClaimReward`
-
-This separates settlement from payout claiming and keeps reward distribution observable on-chain.
-
-### Prize Pool Summary
+- Entry fees go into a real on-chain VARA prize pool.
+- Top performers receive rewards after settlement.
+- Current default split is `60% / 30% / 10%` for first, second, and third place.
+- Settlement happens through the contract.
+- Users claim rewards after settlement instead of being paid manually.
 
 | Item | Description |
 | --- | --- |
@@ -207,148 +290,84 @@ This separates settlement from payout claiming and keeps reward distribution obs
 | Current payout split | 60% / 30% / 10% |
 | Reward claim model | Winners claim after settlement |
 
-## 10. On-Chain Components
-
-The smart contract is responsible for:
-
-- tournament creation
-- join validation
-- position opening and closing
-- stop loss and take profit storage
-- PnL calculation
-- leaderboard calculation
-- tournament end and settlement
-- claimable reward tracking
-- reward claiming
-- event emission
-
-### Important Contract Methods
-
-- `CreateTournament`
-- `JoinTournament`
-- `OpenPosition`
-- `ClosePosition`
-- `KeeperTick`
-- `UpdatePriceAndProcess`
-- `ProcessTournament`
-- `EndTournament`
-- `SettleTournament`
-- `ClaimReward`
-- `Leaderboard`
-- `Participant`
-- `Tournaments`
-
-### Contract Responsibility Boundary
-
-The contract owns:
-
-- tournament rules
-- account state
-- ranking logic
-- settlement logic
-- payout eligibility
-
-The contract does not fetch external prices by itself.
-
-## 11. Off-Chain Components
-
-TradeVault Arena also depends on off-chain services and interfaces:
-
-- frontend UI
-- wallet connection
-- Binance live BTC price preview in the UI
-- keeper server
-- contract client and IDL integration
-
-Important separation:
-
-- the frontend can read state and request user signatures
-- the keeper pushes tournament prices on-chain
-- the frontend does not auto-sign keeper actions
-
-## 12. Keeper / Oracle Architecture
+<details>
+<summary>Keeper / Oracle Architecture</summary>
 
 ### Why a Keeper Is Needed
 
-Smart contracts cannot directly fetch external BTC/USD prices from Binance or other APIs. Because of that, a separate actor must bring the price on-chain.
+Smart contracts cannot fetch BTC/USD prices directly from Binance or any other external API. A separate actor must post the price on-chain.
 
 ### Current MVP Plan
 
-Current architecture:
+- A server-side keeper fetches BTC/USDT from Binance.
+- The keeper calls `KeeperTick(tournament_id, price)`.
+- The contract updates tournament price state.
+- The contract processes SL/TP checks, ranking effects, and lifecycle transitions.
+- The contract can end or settle tournaments when conditions are met.
 
-- a server-side keeper fetches BTC/USDT from Binance
-- the keeper calls `KeeperTick(tournament_id, price)`
-- the contract updates the tournament price
-- the contract processes stop loss / take profit
-- the contract can also end and settle tournaments as part of keeper processing
+### Current Production Direction
+
+- Frontend only reads state and signs user actions.
+- Keeper wallet is server-side only.
+- Trading should be disabled if on-chain price becomes stale.
+- Manual admin sync/process remains as fallback, not as the primary path.
 
 ### Future Upgrade Path
 
-Future improvements may include:
-
-- multi-keeper median price
-- decentralized oracle integration such as Pyth or Chainlink if suitable Vara integrations exist
-- stronger stale-price protection
-- more explicit keeper role management and monitoring
+- Multi-keeper support
+- Median price validation
+- Stronger stale-price protection
+- Price jump sanity checks
+- Decentralized oracle integration such as Pyth or Chainlink if suitable Vara integrations become available
 
 ### Important Honesty
 
-TradeVault Arena has on-chain trading logic, ranking, and settlement, but the MVP price sourcing model is keeper-based. It should not be described as fully decentralized until price sourcing is more trust-minimized.
+TradeVault Arena has on-chain tournament logic and settlement, but the MVP price source is still keeper-based. It should not be described as fully decentralized until price resolution is more trust-minimized.
 
-## 13. Why Not Frontend Auto Sync
+</details>
 
-Frontend-driven price syncing is not the correct production direction.
+## 9. User and Admin Actions
 
-Reasons:
+### User Actions
 
-- it creates repeated wallet signature prompts
-- it stops working when the browser closes
-- it depends on a user session staying online
-- it is unreliable for tournament automation
-- users should not be responsible for price posting
-- keeper/server architecture is operationally safer and cleaner
+- `JoinTournament`
+- `OpenPosition`
+- `ClosePosition`
+- `ClaimReward`
 
-The correct model is:
+### Admin Actions
 
-- users sign user actions
-- admin signs admin actions
-- keeper signs oracle and processing actions
+- `CreateTournament`
+- `AddKeeper`
+- `RemoveKeeper`
+- Manual `KeeperTick` fallback
+- Manual settlement fallback
 
-## 14. Wallet Integration
+## 10. Wallet Integration
 
 TradeVault Arena uses Vara-compatible wallet integrations through `@polkadot/extension-dapp`.
 
-Supported desktop extension categories include:
+### Supported Wallet Categories
 
 - SubWallet
 - Polkadot.js
 - Talisman
 - Enkrypt
 
-Mobile note:
+### Mobile Note
 
-- mobile support depends on wallet browser support
-- users should generally open the app inside a wallet browser such as the SubWallet mobile browser
+- Mobile support depends on wallet browser support.
+- Users should generally open the app inside a wallet browser such as the SubWallet mobile browser.
 
-### Who Signs What
+### Signing Rules
 
-Users sign only user-facing actions:
+- Users sign only user actions.
+- Admin signs admin actions.
+- Keeper signs keeper/oracle actions.
 
-- `JoinTournament`
-- `OpenPosition`
-- `ClosePosition`
-- `ClaimReward`
+## 11. Technical Stack
 
-Admin or keeper signs operational actions:
-
-- tournament creation
-- keeper management
-- manual fallback sync
-- manual settlement or lifecycle fallback
-
-## 15. Frontend Architecture
-
-The frontend stack uses:
+### Frontend
 
 - React
 - TypeScript
@@ -357,7 +376,7 @@ The frontend stack uses:
 - Framer Motion
 - `lightweight-charts`
 
-### Relevant Page Structure
+### Frontend Structure
 
 - `src/pages/HomePage.tsx`
 - `src/pages/TournamentsPage.tsx`
@@ -365,9 +384,7 @@ The frontend stack uses:
 - `src/pages/LeaderboardPage.tsx`
 - `src/pages/VaultPage.tsx`
 - `src/pages/AdminPage.tsx`
-
-### Relevant Component Groups
-
+- `src/pages/DocsPage.tsx`
 - `src/components/layout`
 - `src/components/trade`
 - `src/components/tournament`
@@ -375,128 +392,97 @@ The frontend stack uses:
 - `src/components/vault`
 - `src/components/wallet`
 
-### Frontend Role
-
-The frontend is responsible for:
-
-- wallet connection
-- query display
-- tournament discovery
-- trade input collection
-- transaction submission for user or admin actions
-- live BTC preview from Binance
-- freshness and status display
-
-The frontend is not the oracle.
-
-## 16. Smart Contract / Vara Stack
-
-TradeVault Arena is built with:
+### Smart Contract / Vara Stack
 
 - Vara Network
 - Gear Protocol
 - Sails.rs
-- Rust smart contract code
+- Rust smart contract
 - IDL-based frontend integration
-- testnet deployment workflow
+- Vara testnet deployment
 
-### Current Program ID
+**Current Program ID:** `0x4633e693b251d976e33631c09b9277219e032d62150684ae501d8c7f2c9a5fc7`
 
-Current Program ID:
+Program ID may change after redeploys, especially when interface or storage layout changes.
 
-`0x4633e693b251d976e33631c09b9277219e032d62150684ae501d8c7f2c9a5fc7`
+## 12. Current MVP Features
 
-Important note:
-
-- the program ID may change after redeploys
-- interface changes such as keeper roles or stale-price storage can require a redeploy
-
-## 17. Current MVP Features
-
-- [x] wallet connect
-- [x] create tournament
-- [x] join tournament
-- [x] live BTC price display
-- [x] synthetic Long/Short trading
+- [x] Wallet connect
+- [x] Create tournament
+- [x] Join tournament
+- [x] Live BTC price display
+- [x] Synthetic Long/Short trading
 - [x] Stop Loss / Take Profit fields
-- [x] leaderboard
-- [x] vault summary
-- [x] admin panel
-- [x] settlement and claim flow
-- [x] dark black + glow green UI direction
-- [x] transaction feedback
+- [x] Leaderboard
+- [x] Vault summary
+- [x] Admin panel
+- [x] Settlement and claim flow
+- [x] Dark black + glow green UI
+- [x] Transaction feedback
 
-## 18. Known MVP Limitations
+## 13. Known MVP Limitations
 
-TradeVault Arena is still an MVP and should be described honestly.
+- Price feed is keeper-based.
+- If the keeper is offline, tournament price can become stale.
+- There is no fully decentralized oracle yet.
+- Keeper/admin permissions may still need hardening over time.
+- There is no order book.
+- There is no real asset trading.
+- Trading is synthetic only.
+- Mobile wallet support depends on wallet browser behavior.
+- The MVP is intentionally narrow and focused on BTC/USD.
+- The current state model is simpler with one open position per participant.
+- No leverage or liquidation engine exists in the current MVP.
 
-Current limitations:
+## 14. Why Not Frontend Auto Sync
 
-- price feed is keeper-based
-- if the keeper is offline, tournament price can become stale
-- there is no fully decentralized oracle yet
-- keeper and admin permissions may still need future hardening
-- there is no order book
-- there is no real asset trading
-- trading is synthetic only
-- mobile wallet support depends on wallet browser behavior
+Frontend-driven price syncing is not a production-safe model.
 
-Additional practical limitations:
+- It creates wallet spam.
+- It stops when the browser closes.
+- It depends on a user session remaining online.
+- It makes price posting operationally unreliable.
+- Users should not be responsible for oracle updates.
 
-- one synthetic market is the main MVP focus
-- one open position per participant keeps the state model simpler
-- no leverage or liquidation engine exists in the current MVP
+The correct direction is:
 
-## 19. Planned Improvements / Roadmap
+- users sign user actions
+- admin signs admin fallback actions
+- keeper signs price and processing actions
 
-### Phase 1: Stable MVP
+<details>
+<summary>Smart Contract Methods</summary>
 
-- server-side keeper
-- stale price protection
-- price sync freshness UI
-- reliable deployment
-- clean wallet flow
+| Method | Purpose |
+| --- | --- |
+| `CreateTournament` | Create a new arena with rules and timings |
+| `JoinTournament` | Enter a tournament and pay entry fee |
+| `OpenPosition` | Open a synthetic Long or Short with optional SL/TP |
+| `ClosePosition` | Close an active position |
+| `KeeperTick` | Post a fresh price and process tournament logic |
+| `UpdatePriceAndProcess` | Update tournament price and run processing logic |
+| `ProcessTournament` | Recalculate state and lifecycle without a full manual flow |
+| `EndTournament` | Mark a tournament as ended when applicable |
+| `SettleTournament` | Assign winner rewards and finalize tournament state |
+| `ClaimReward` | Claim a settled VARA reward |
+| `Leaderboard` | Query ranked participant state |
+| `Participant` | Query participant-specific tournament state |
+| `Tournaments` | Query tournament records |
 
-### Phase 2: Trust-Minimized Price Resolution
+</details>
 
-- multi-keeper support
-- median price validation
-- keeper role management
-- price jump protection
+<details>
+<summary>Security Considerations</summary>
 
-### Phase 3: Oracle Integration
+### Core Rules
 
-- Pyth or Chainlink style oracle integration if supported on Vara
-- verifiable price updates
-- lower trust assumptions
-
-### Phase 4: Trading Upgrades
-
-- multiple tournaments running in parallel
-- richer trade history
-- leaderboard share cards
-- stronger risk controls
-- optional leverage or liquidation simulation
-- advanced charting
-
-### Phase 5: Reputation Layer
-
-- trader profile
-- performance history
-- badges
-- social trading or capital allocation style extensions
-
-## 20. Security Considerations
-
-TradeVault Arena’s security model must be explicit:
-
-- admin and keeper keys must never be exposed in the frontend
-- `.env` secrets must not be committed
-- frontend auto-write loops should be avoided
-- all write actions require wallet approval
-- keeper permissions should be restricted to the minimum needed scope
-- price manipulation risk exists in a keeper-based architecture and must be mitigated over time
-- settlement and SL/TP logic require tests
+- Admin and keeper keys must never be exposed in the frontend.
+- `.env` secrets must never be committed.
+- Frontend auto-write loops should be avoided.
+- All write actions require explicit wallet approval.
+- Keeper permissions should be restricted to the minimum needed scope.
+- Price manipulation risk exists in a keeper-based model and must be mitigated over time.
+- Settlement and SL/TP paths require strong tests.
 
 ### Risk Areas
 
@@ -508,42 +494,72 @@ TradeVault Arena’s security model must be explicit:
 | Settlement logic | Incorrect rewards | Contract tests and explicit settlement flow |
 | Operational reliability | Keeper downtime | Manual admin fallback and stale-price UI |
 
-## 21. Deployment Notes
+</details>
+
+<details>
+<summary>Roadmap</summary>
+
+### Phase 1: Stable MVP
+
+- Server-side keeper
+- Stale price protection
+- Price freshness UI
+- Reliable deployment
+- Clean wallet flow
+
+### Phase 2: Trust-Minimized Price Resolution
+
+- Multi-keeper support
+- Median price validation
+- Keeper role management
+- Price jump protection
+
+### Phase 3: Oracle Integration
+
+- Pyth or Chainlink style oracle if supported on Vara
+- Verifiable price updates
+- Lower trust assumptions
+
+### Phase 4: Trading Upgrades
+
+- Multiple tournaments
+- Trade history
+- Leaderboard share cards
+- Risk controls
+- Optional leverage or liquidation simulation
+- Advanced charting
+
+### Phase 5: Reputation Layer
+
+- Trader profile
+- Performance history
+- Badges
+- Social trading or capital allocation extensions
+
+</details>
+
+## 15. Deployment Notes
 
 ### Frontend
 
-- frontend is intended for deployment on Vercel
-- Vercel root directory should be `frontend`
-- build command should be `npm run build`
-- output directory should be `dist`
+- Deploy on Vercel.
+- Set Vercel root directory to `frontend`.
+- Build command: `npm run build`
+- Output directory: `dist`
 
 ### Keeper
 
-- keeper should be deployed separately
-- suitable targets include Railway, Render, or a VPS
-- the keeper should run independently from the browser
+- Deploy separately from the frontend.
+- Suitable targets include Railway, Render, or a VPS.
+- Keeper should run independently from the browser.
 
 ### Contract
 
-- contract is deployed on Vara testnet for the MVP flow
-- redeploys may be needed when the contract interface changes
+- Deploy on Vara testnet for the MVP.
+- Redeploys may be required when the contract interface changes.
 
-## 22. Demo Flow
-
-Suggested demo script:
-
-1. Open the app.
-2. Connect a Vara-compatible wallet.
-3. Browse available tournaments.
-4. Join a tournament by paying the entry fee.
-5. Admin or keeper syncs tournament price on-chain.
-6. Open a synthetic Long or Short BTC position.
-7. Watch PnL and leaderboard change as keeper prices update.
-8. Trigger SL/TP or wait for tournament end.
-9. Settle the tournament.
-10. Claim the winner reward.
-
-## 23. FAQ
+<details>
+<summary>FAQ</summary>
 
 ### Is trading real?
 
@@ -555,73 +571,30 @@ Yes. Entry fees and rewards are real on-chain VARA amounts.
 
 ### Is it fully on-chain?
 
-Not fully. Tournament accounting, ranking, settlement, and rewards are on-chain. External price sourcing is still keeper-based in the MVP.
+Not fully. Tournament accounting, ranking, settlement, and rewards are on-chain. External price sourcing is keeper-based in the current MVP.
 
 ### What is the oracle or resolution method?
 
-In the current MVP direction, a server-side keeper fetches BTC/USDT from Binance and posts price updates on-chain using keeper methods.
+A server-side keeper fetches BTC/USDT from Binance and posts price updates on-chain using keeper methods.
 
 ### What happens if the keeper goes offline?
 
-Tournament price can become stale. The frontend should reflect that state, and admin fallback actions can be used until a more resilient multi-keeper or oracle architecture is added.
+Tournament price can become stale. The UI should reflect freshness, and admin fallback actions can be used until a more resilient oracle path is added.
 
-### Can users lose more than entry fee?
+### Can users lose more than the entry fee?
 
-Users pay a real entry fee to join the arena. Trading losses are synthetic inside the tournament. The main real economic cost to the user is the entry fee, not additional trading collateral.
+The real user cost is the entry fee. Trading losses are synthetic within the tournament and do not create additional collateral loss in the current MVP model.
 
 ### Why use Vara?
 
-Vara and Gear provide a good environment for smart-contract-managed application logic, typed interfaces, and on-chain state transitions for tournament workflows.
+Vara and Gear are well-suited to typed smart contract interfaces, event-driven workflows, and on-chain tournament state transitions.
 
 ### Can this support other assets?
 
-Yes, in principle. The current MVP is intentionally narrow and focused on BTC/USD to keep product scope and contract complexity manageable.
+Yes, in principle. The MVP is intentionally narrow and focused on BTC/USD to keep complexity manageable.
 
-## 24. Short Pitch
+</details>
+
+## 16. Short Pitch
 
 TradeVault Arena turns trading competitions into transparent on-chain arenas: users trade synthetic BTC with equal virtual balances, compete by Return %, and win real VARA rewards from a smart-contract-managed prize pool.
-
-## Architecture Diagram
-
-```text
-                  +----------------------+
-                  |   Binance BTC/USDT   |
-                  |  external price data |
-                  +----------+-----------+
-                             |
-                             v
-                  +----------------------+
-                  |    Keeper Server     |
-                  | fetch + validate +   |
-                  | call KeeperTick()    |
-                  +----------+-----------+
-                             |
-                             v
-+-------------------+   +---------------------------+   +----------------------+
-| User Wallets      |<->| TradeVault Arena Program  |<->| Vara Testnet State   |
-| Join / Trade /    |   | tournaments, positions,   |   | prize pool, rewards, |
-| Claim Reward      |   | PnL, ranking, settlement  |   | events, balances     |
-+---------+---------+   +---------------------------+   +----------------------+
-          ^
-          |
-          v
-+---------------------------+
-| Frontend (React + Vite)   |
-| read state, show charts,  |
-| submit user/admin txs     |
-+---------------------------+
-```
-
-## Product Summary Table
-
-| Category | Current MVP Position |
-| --- | --- |
-| Market | BTC/USD |
-| Trading style | Synthetic / paper trading |
-| Rewards | Real VARA prize pool |
-| Ranking metric | Return % |
-| Price source | Keeper-posted external price |
-| Settlement | On-chain |
-| Wallet model | Vara-compatible extension wallets |
-| Trust model | On-chain logic with keeper-based price input |
-
