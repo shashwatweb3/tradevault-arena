@@ -167,9 +167,36 @@ export async function fetchAdmin(api: GearApi, programId: string): Promise<strin
   return service.queries.Admin().call();
 }
 
+export async function fetchIsKeeper(
+  api: GearApi,
+  programId: string,
+  address: string,
+): Promise<boolean> {
+  const service = await getService(api, programId);
+  return service.queries.IsKeeper(toActorId(address)).call();
+}
+
+export async function fetchKeepers(api: GearApi, programId: string): Promise<string[]> {
+  const service = await getService(api, programId);
+  return service.queries.Keepers().call();
+}
+
 export async function fetchCurrentMockPrice(api: GearApi, programId: string): Promise<string> {
   const service = await getService(api, programId);
   return service.queries.CurrentMockPrice().call();
+}
+
+export async function fetchLastPriceUpdateTime(
+  api: GearApi,
+  programId: string,
+): Promise<string> {
+  const service = await getService(api, programId);
+  return service.queries.LastPriceUpdateTime().call();
+}
+
+export async function fetchMaxStaleMs(api: GearApi, programId: string): Promise<string> {
+  const service = await getService(api, programId);
+  return service.queries.MaxStaleMs().call();
 }
 
 export async function fetchTournaments(
@@ -233,6 +260,34 @@ export async function updateMockPrice(
     undefined,
     "update_mock_price",
     { newPrice: newPrice.toString() },
+  );
+}
+
+export async function addKeeper(
+  api: GearApi,
+  programId: string,
+  account: TxAccount,
+  keeperAddress: string,
+): Promise<boolean> {
+  return runTransaction<boolean>(api, programId, account, (service) =>
+    service.functions.AddKeeper(toActorId(keeperAddress)),
+    undefined,
+    "add_keeper",
+    { keeperAddress },
+  );
+}
+
+export async function removeKeeper(
+  api: GearApi,
+  programId: string,
+  account: TxAccount,
+  keeperAddress: string,
+): Promise<boolean> {
+  return runTransaction<boolean>(api, programId, account, (service) =>
+    service.functions.RemoveKeeper(toActorId(keeperAddress)),
+    undefined,
+    "remove_keeper",
+    { keeperAddress },
   );
 }
 

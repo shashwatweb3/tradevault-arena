@@ -2,7 +2,7 @@
 
 use sails_rs::{
     cell::RefCell,
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     gstd::{exec, msg},
     prelude::*,
 };
@@ -12,6 +12,9 @@ type TournamentId = u64;
 const WINNER_SHARES: [u128; 3] = [60, 30, 10];
 const RETURN_SCALE_BPS: i128 = 10_000;
 const PAYOUT_MESSAGE: &[u8] = b"tradevault-payout";
+const DEFAULT_MAX_STALE_MS: u64 = 30_000;
+const MAX_PRICE_JUMP_BPS: u128 = 1_000;
+const BPS_SCALE: u128 = 10_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
@@ -45,12 +48,15 @@ pub enum CloseReason {
 #[scale_info(crate = sails_rs::scale_info)]
 pub enum ArenaError {
     Unauthorized,
+    NotKeeper,
     EmptyName,
     InvalidEntryFee,
     InvalidTimeRange,
     InvalidInitialBalance,
     InvalidMaxParticipants,
     InvalidPrice,
+    PriceStale,
+    ExcessivePriceJump,
     TournamentNotFound,
     TournamentNotUpcoming,
     TournamentNotActive,
@@ -215,6 +221,13 @@ pub enum TradeVaultArenaEvent {
     PriceUpdated {
         tournament_id: TournamentId,
         price: u128,
+        timestamp: u64,
+    },
+    KeeperAdded {
+        keeper: ActorId,
+    },
+    KeeperRemoved {
+        keeper: ActorId,
     },
     PositionOpened {
         tournament_id: TournamentId,
@@ -250,6 +263,12 @@ pub enum TradeVaultArenaEvent {
         tournament_id: TournamentId,
         winners: Vec<WinnerPayout>,
     },
+    KeeperTickProcessed {
+        tournament_id: TournamentId,
+        positions_closed: u32,
+        tournament_ended: bool,
+        tournament_settled: bool,
+    },
     RewardClaimed {
         tournament_id: TournamentId,
         participant: ActorId,
@@ -261,6 +280,9 @@ pub enum TradeVaultArenaEvent {
 pub struct ArenaState {
     pub admin: ActorId,
     pub current_btc_price: u128,
+    pub last_price_update_time: u64,
+    pub max_stale_ms: u64,
+    pub keepers: BTreeSet<ActorId>,
     pub next_tournament_id: TournamentId,
     pub tournaments: BTreeMap<TournamentId, Tournament>,
 }
@@ -278,6 +300,9 @@ impl Program {
             state: RefCell::new(ArenaState {
                 admin: msg::source(),
                 current_btc_price: initial_btc_price,
+                last_price_update_time: exec::block_timestamp(),
+                max_stale_ms: DEFAULT_MAX_STALE_MS,
+                keepers: BTreeSet::new(),
                 next_tournament_id: 1,
                 tournaments: BTreeMap::new(),
             }),
@@ -320,6 +345,80 @@ impl<'a> TradeVaultArenaService<'a> {
         }
 
         Ok(())
+    }
+
+    fn ensure_keeper_or_admin(&self) -> Result<bool, ArenaError> {
+        let caller = TradeVaultArenaService::caller();
+        let state = self.state.borrow();
+        if caller == state.admin {
+            return Ok(true);
+        }
+        if state.keepers.contains(&caller) {
+            return Ok(false);
+        }
+
+        Err(ArenaError::NotKeeper)
+    }
+
+    fn is_price_stale_at(now: u64, last_price_update_time: u64, max_stale_ms: u64) -> bool {
+        now.saturating_sub(last_price_update_time) > max_stale_ms
+    }
+
+    fn ensure_fresh_price(state: &ArenaState) -> Result<(), ArenaError> {
+        if TradeVaultArenaService::is_price_stale_at(
+            TradeVaultArenaService::now(),
+            state.last_price_update_time,
+            state.max_stale_ms,
+        ) {
+            return Err(ArenaError::PriceStale);
+        }
+
+        Ok(())
+    }
+
+    fn validate_price_update(
+        previous_price: u128,
+        new_price: u128,
+        allow_large_jump: bool,
+    ) -> Result<(), ArenaError> {
+        if new_price == 0 {
+            return Err(ArenaError::InvalidPrice);
+        }
+
+        if allow_large_jump || previous_price == 0 || previous_price == new_price {
+            return Ok(());
+        }
+
+        let price_diff = previous_price.abs_diff(new_price);
+        let scaled_diff = price_diff
+            .checked_mul(BPS_SCALE)
+            .ok_or(ArenaError::MathOverflow)?;
+        let max_allowed = previous_price
+            .checked_mul(MAX_PRICE_JUMP_BPS)
+            .ok_or(ArenaError::MathOverflow)?;
+        if scaled_diff > max_allowed {
+            return Err(ArenaError::ExcessivePriceJump);
+        }
+
+        Ok(())
+    }
+
+    fn write_price_update(
+        state: &mut ArenaState,
+        new_price: u128,
+        allow_large_jump: bool,
+    ) -> Result<u64, ArenaError> {
+        TradeVaultArenaService::validate_price_update(
+            state.current_btc_price,
+            new_price,
+            allow_large_jump,
+        )?;
+
+        let timestamp = TradeVaultArenaService::now();
+        state.current_btc_price = new_price;
+        state.last_price_update_time = timestamp;
+
+        Ok(timestamp)
     }
 
     fn sync_active_status(tournament: &mut Tournament) {
@@ -405,8 +504,8 @@ impl<'a> TradeVaultArenaService<'a> {
         participant: &ParticipantState,
         current_price: u128,
     ) -> Result<i128, ArenaError> {
-        let initial =
-            i128::try_from(participant.initial_virtual_balance).map_err(|_| ArenaError::MathOverflow)?;
+        let initial = i128::try_from(participant.initial_virtual_balance)
+            .map_err(|_| ArenaError::MathOverflow)?;
         let unrealized = TradeVaultArenaService::unrealized_pnl_at(participant, current_price)?;
 
         initial
@@ -487,8 +586,7 @@ impl<'a> TradeVaultArenaService<'a> {
     ) -> Result<ParticipantView, ArenaError> {
         let unrealized_pnl =
             TradeVaultArenaService::unrealized_pnl_at(participant_state, current_price)?;
-        let final_value =
-            TradeVaultArenaService::final_value_at(participant_state, current_price)?;
+        let final_value = TradeVaultArenaService::final_value_at(participant_state, current_price)?;
         let return_percentage_bps = TradeVaultArenaService::return_percentage_bps(
             final_value,
             participant_state.initial_virtual_balance,
@@ -601,7 +699,8 @@ impl<'a> TradeVaultArenaService<'a> {
         let participants = tournament.participants.clone();
         let mut closed_positions = Vec::new();
         for participant in participants {
-            let Some(participant_state) = tournament.participant_states.get_mut(&participant) else {
+            let Some(participant_state) = tournament.participant_states.get_mut(&participant)
+            else {
                 continue;
             };
             let Some(position) = participant_state.position.clone() else {
@@ -677,14 +776,18 @@ impl<'a> TradeVaultArenaService<'a> {
                 .ok_or(ArenaError::MathOverflow)?
                 .checked_div(100)
                 .ok_or(ArenaError::MathOverflow)?;
-            distributed = distributed.checked_add(payout).ok_or(ArenaError::MathOverflow)?;
+            distributed = distributed
+                .checked_add(payout)
+                .ok_or(ArenaError::MathOverflow)?;
 
             if index + 1 == winner_count {
                 let remainder = tournament
                     .prize_pool
                     .checked_sub(distributed)
                     .ok_or(ArenaError::MathOverflow)?;
-                payout = payout.checked_add(remainder).ok_or(ArenaError::MathOverflow)?;
+                payout = payout
+                    .checked_add(remainder)
+                    .ok_or(ArenaError::MathOverflow)?;
                 distributed = distributed
                     .checked_add(remainder)
                     .ok_or(ArenaError::MathOverflow)?;
@@ -729,8 +832,28 @@ impl TradeVaultArenaService<'_> {
     }
 
     #[export]
+    pub fn is_keeper(&self, address: ActorId) -> bool {
+        self.state.borrow().keepers.contains(&address)
+    }
+
+    #[export]
+    pub fn keepers(&self) -> Vec<ActorId> {
+        self.state.borrow().keepers.iter().copied().collect()
+    }
+
+    #[export]
     pub fn current_mock_price(&self) -> u128 {
         self.state.borrow().current_btc_price
+    }
+
+    #[export]
+    pub fn last_price_update_time(&self) -> u64 {
+        self.state.borrow().last_price_update_time
+    }
+
+    #[export]
+    pub fn max_stale_ms(&self) -> u64 {
+        self.state.borrow().max_stale_ms
     }
 
     #[export]
@@ -860,6 +983,32 @@ impl TradeVaultArenaService<'_> {
     }
 
     #[export(unwrap_result)]
+    pub fn add_keeper(&mut self, keeper: ActorId) -> Result<bool, ArenaError> {
+        self.ensure_admin()?;
+
+        let added = self.state.borrow_mut().keepers.insert(keeper);
+        if added {
+            self.emit_event(TradeVaultArenaEvent::KeeperAdded { keeper })
+                .expect("event error");
+        }
+
+        Ok(added)
+    }
+
+    #[export(unwrap_result)]
+    pub fn remove_keeper(&mut self, keeper: ActorId) -> Result<bool, ArenaError> {
+        self.ensure_admin()?;
+
+        let removed = self.state.borrow_mut().keepers.remove(&keeper);
+        if removed {
+            self.emit_event(TradeVaultArenaEvent::KeeperRemoved { keeper })
+                .expect("event error");
+        }
+
+        Ok(removed)
+    }
+
+    #[export(unwrap_result)]
     pub fn join_tournament(
         &mut self,
         tournament_id: TournamentId,
@@ -932,12 +1081,8 @@ impl TradeVaultArenaService<'_> {
     pub fn update_mock_price(&mut self, new_price: u128) -> Result<u128, ArenaError> {
         self.ensure_admin()?;
 
-        if new_price == 0 {
-            return Err(ArenaError::InvalidPrice);
-        }
-
         let mut state = self.state.borrow_mut();
-        state.current_btc_price = new_price;
+        TradeVaultArenaService::write_price_update(&mut state, new_price, true)?;
         self.emit_event(TradeVaultArenaEvent::MockPriceUpdated { price: new_price })
             .expect("event error");
 
@@ -960,6 +1105,7 @@ impl TradeVaultArenaService<'_> {
         let caller = TradeVaultArenaService::caller();
         let now = TradeVaultArenaService::now();
         let mut state = self.state.borrow_mut();
+        TradeVaultArenaService::ensure_fresh_price(&state)?;
         let current_price = state.current_btc_price;
         let tournament = state
             .tournaments
@@ -1036,6 +1182,7 @@ impl TradeVaultArenaService<'_> {
         let caller = TradeVaultArenaService::caller();
         let now = TradeVaultArenaService::now();
         let mut state = self.state.borrow_mut();
+        TradeVaultArenaService::ensure_fresh_price(&state)?;
         let current_price = state.current_btc_price;
         let tournament = state
             .tournaments
@@ -1165,31 +1312,33 @@ impl TradeVaultArenaService<'_> {
         new_btc_price: u128,
     ) -> Result<KeeperTickSummary, ArenaError> {
         self.ensure_admin()?;
-        if new_btc_price == 0 {
-            return Err(ArenaError::InvalidPrice);
-        }
 
-        let (closed_positions, summary) = {
+        let (closed_positions, summary, timestamp) = {
             let mut state = self.state.borrow_mut();
-            state.current_btc_price = new_btc_price;
+            let timestamp =
+                TradeVaultArenaService::write_price_update(&mut state, new_btc_price, true)?;
             let tournament = state
                 .tournaments
                 .get_mut(&tournament_id)
                 .ok_or(ArenaError::TournamentNotFound)?;
-            let closed_positions =
-                TradeVaultArenaService::process_price_update(tournament_id, tournament, new_btc_price)?;
+            let closed_positions = TradeVaultArenaService::process_price_update(
+                tournament_id,
+                tournament,
+                new_btc_price,
+            )?;
             let summary = KeeperTickSummary {
                 price_updated: true,
                 positions_closed: closed_positions.len() as u32,
                 tournament_ended: false,
                 tournament_settled: false,
             };
-            (closed_positions, summary)
+            (closed_positions, summary, timestamp)
         };
 
         self.emit_event(TradeVaultArenaEvent::PriceUpdated {
             tournament_id,
             price: new_btc_price,
+            timestamp,
         })
         .expect("event error");
 
@@ -1285,17 +1434,98 @@ impl TradeVaultArenaService<'_> {
         tournament_id: TournamentId,
         new_btc_price: u128,
     ) -> Result<KeeperTickSummary, ArenaError> {
-        self.ensure_admin()?;
+        let is_admin = self.ensure_keeper_or_admin()?;
 
-        let price_summary = self.update_price_and_process(tournament_id, new_btc_price)?;
-        let lifecycle_summary = self.process_tournament(tournament_id)?;
+        let (closed_positions, ended, settlement, timestamp) = {
+            let mut state = self.state.borrow_mut();
+            let timestamp =
+                TradeVaultArenaService::write_price_update(&mut state, new_btc_price, is_admin)?;
+            let tournament = state
+                .tournaments
+                .get_mut(&tournament_id)
+                .ok_or(ArenaError::TournamentNotFound)?;
+            let closed_positions = TradeVaultArenaService::process_price_update(
+                tournament_id,
+                tournament,
+                new_btc_price,
+            )?;
+            let ended = TradeVaultArenaService::end_tournament_state(tournament, new_btc_price)?;
+            let settlement = TradeVaultArenaService::settle_tournament_state(
+                tournament_id,
+                tournament,
+                new_btc_price,
+            )?;
+            (closed_positions, ended, settlement, timestamp)
+        };
 
-        Ok(KeeperTickSummary {
-            price_updated: price_summary.price_updated,
-            positions_closed: price_summary.positions_closed,
-            tournament_ended: lifecycle_summary.tournament_ended,
-            tournament_settled: lifecycle_summary.tournament_settled,
+        self.emit_event(TradeVaultArenaEvent::PriceUpdated {
+            tournament_id,
+            price: new_btc_price,
+            timestamp,
         })
+        .expect("event error");
+
+        for closed_position in &closed_positions {
+            match closed_position.close_reason {
+                CloseReason::StopLoss => self
+                    .emit_event(TradeVaultArenaEvent::StopLossTriggered {
+                        tournament_id,
+                        participant: closed_position.participant,
+                        trigger_price: closed_position.exit_price,
+                    })
+                    .expect("event error"),
+                CloseReason::TakeProfit => self
+                    .emit_event(TradeVaultArenaEvent::TakeProfitTriggered {
+                        tournament_id,
+                        participant: closed_position.participant,
+                        trigger_price: closed_position.exit_price,
+                    })
+                    .expect("event error"),
+                CloseReason::Manual => {}
+            }
+
+            self.emit_event(TradeVaultArenaEvent::PositionClosed {
+                tournament_id,
+                participant: closed_position.participant,
+                realized_pnl: closed_position.realized_pnl,
+                exit_price: closed_position.exit_price,
+                close_reason: closed_position.close_reason.clone(),
+            })
+            .expect("event error");
+        }
+
+        if ended {
+            self.emit_event(TradeVaultArenaEvent::TournamentEnded {
+                tournament_id,
+                final_btc_price: new_btc_price,
+            })
+            .expect("event error");
+        }
+
+        if let Some(settlement) = &settlement {
+            self.emit_event(TradeVaultArenaEvent::TournamentSettled {
+                tournament_id,
+                winners: settlement.winners.clone(),
+            })
+            .expect("event error");
+        }
+
+        let summary = KeeperTickSummary {
+            price_updated: true,
+            positions_closed: closed_positions.len() as u32,
+            tournament_ended: ended,
+            tournament_settled: settlement.is_some(),
+        };
+
+        self.emit_event(TradeVaultArenaEvent::KeeperTickProcessed {
+            tournament_id,
+            positions_closed: summary.positions_closed,
+            tournament_ended: summary.tournament_ended,
+            tournament_settled: summary.tournament_settled,
+        })
+        .expect("event error");
+
+        Ok(summary)
     }
 
     #[export(unwrap_result)]

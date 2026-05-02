@@ -18,7 +18,7 @@ export function AdminPage({
         <p className="tv-kicker">Admin Console</p>
         <h1 className="text-2xl font-semibold text-[var(--text)]">Admin</h1>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-          Create tournaments, sync price, process lifecycle changes, and settle payouts.
+          Create tournaments, manage keeper wallets, run fallback syncs, and settle payouts.
         </p>
       </section>
 

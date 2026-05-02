@@ -47,6 +47,10 @@ pub mod tradevault_arena {
     use super::*;
     pub trait TradevaultArena {
         type Env: sails_rs::client::GearEnv;
+        fn add_keeper(
+            &mut self,
+            keeper: ActorId,
+        ) -> sails_rs::client::PendingCall<io::AddKeeper, Self::Env>;
         fn claim_reward(
             &mut self,
             tournament_id: u64,
@@ -89,6 +93,10 @@ pub mod tradevault_arena {
             &mut self,
             tournament_id: u64,
         ) -> sails_rs::client::PendingCall<io::ProcessTournament, Self::Env>;
+        fn remove_keeper(
+            &mut self,
+            keeper: ActorId,
+        ) -> sails_rs::client::PendingCall<io::RemoveKeeper, Self::Env>;
         fn settle_tournament(
             &mut self,
             tournament_id: u64,
@@ -106,10 +114,19 @@ pub mod tradevault_arena {
         fn current_mock_price(
             &self,
         ) -> sails_rs::client::PendingCall<io::CurrentMockPrice, Self::Env>;
+        fn is_keeper(
+            &self,
+            address: ActorId,
+        ) -> sails_rs::client::PendingCall<io::IsKeeper, Self::Env>;
+        fn keepers(&self) -> sails_rs::client::PendingCall<io::Keepers, Self::Env>;
+        fn last_price_update_time(
+            &self,
+        ) -> sails_rs::client::PendingCall<io::LastPriceUpdateTime, Self::Env>;
         fn leaderboard(
             &self,
             tournament_id: u64,
         ) -> sails_rs::client::PendingCall<io::Leaderboard, Self::Env>;
+        fn max_stale_ms(&self) -> sails_rs::client::PendingCall<io::MaxStaleMs, Self::Env>;
         fn participant(
             &self,
             tournament_id: u64,
@@ -126,6 +143,12 @@ pub mod tradevault_arena {
         for sails_rs::client::Service<TradevaultArenaImpl, E>
     {
         type Env = E;
+        fn add_keeper(
+            &mut self,
+            keeper: ActorId,
+        ) -> sails_rs::client::PendingCall<io::AddKeeper, Self::Env> {
+            self.pending_call((keeper,))
+        }
         fn claim_reward(
             &mut self,
             tournament_id: u64,
@@ -197,6 +220,12 @@ pub mod tradevault_arena {
         ) -> sails_rs::client::PendingCall<io::ProcessTournament, Self::Env> {
             self.pending_call((tournament_id,))
         }
+        fn remove_keeper(
+            &mut self,
+            keeper: ActorId,
+        ) -> sails_rs::client::PendingCall<io::RemoveKeeper, Self::Env> {
+            self.pending_call((keeper,))
+        }
         fn settle_tournament(
             &mut self,
             tournament_id: u64,
@@ -224,11 +253,28 @@ pub mod tradevault_arena {
         ) -> sails_rs::client::PendingCall<io::CurrentMockPrice, Self::Env> {
             self.pending_call(())
         }
+        fn is_keeper(
+            &self,
+            address: ActorId,
+        ) -> sails_rs::client::PendingCall<io::IsKeeper, Self::Env> {
+            self.pending_call((address,))
+        }
+        fn keepers(&self) -> sails_rs::client::PendingCall<io::Keepers, Self::Env> {
+            self.pending_call(())
+        }
+        fn last_price_update_time(
+            &self,
+        ) -> sails_rs::client::PendingCall<io::LastPriceUpdateTime, Self::Env> {
+            self.pending_call(())
+        }
         fn leaderboard(
             &self,
             tournament_id: u64,
         ) -> sails_rs::client::PendingCall<io::Leaderboard, Self::Env> {
             self.pending_call((tournament_id,))
+        }
+        fn max_stale_ms(&self) -> sails_rs::client::PendingCall<io::MaxStaleMs, Self::Env> {
+            self.pending_call(())
         }
         fn participant(
             &self,
@@ -250,6 +296,7 @@ pub mod tradevault_arena {
 
     pub mod io {
         use super::*;
+        sails_rs::io_struct_impl!(AddKeeper (keeper: ActorId) -> bool);
         sails_rs::io_struct_impl!(ClaimReward (tournament_id: u64) -> u128);
         sails_rs::io_struct_impl!(ClosePosition (tournament_id: u64) -> super::ParticipantView);
         sails_rs::io_struct_impl!(CreateTournament (name: String, entry_fee: u128, start_time: u64, end_time: u64, initial_virtual_balance: u128, max_participants: u32) -> super::TournamentView);
@@ -258,12 +305,17 @@ pub mod tradevault_arena {
         sails_rs::io_struct_impl!(KeeperTick (tournament_id: u64, new_btc_price: u128) -> super::KeeperTickSummary);
         sails_rs::io_struct_impl!(OpenPosition (tournament_id: u64, direction: super::PositionDirection, size: u128, stop_loss_price: Option<u128>, take_profit_price: Option<u128>) -> super::ParticipantView);
         sails_rs::io_struct_impl!(ProcessTournament (tournament_id: u64) -> super::KeeperTickSummary);
+        sails_rs::io_struct_impl!(RemoveKeeper (keeper: ActorId) -> bool);
         sails_rs::io_struct_impl!(SettleTournament (tournament_id: u64) -> super::SettlementResult);
         sails_rs::io_struct_impl!(UpdateMockPrice (new_price: u128) -> u128);
         sails_rs::io_struct_impl!(UpdatePriceAndProcess (tournament_id: u64, new_btc_price: u128) -> super::KeeperTickSummary);
         sails_rs::io_struct_impl!(Admin () -> ActorId);
         sails_rs::io_struct_impl!(CurrentMockPrice () -> u128);
+        sails_rs::io_struct_impl!(IsKeeper (address: ActorId) -> bool);
+        sails_rs::io_struct_impl!(Keepers () -> Vec<ActorId>);
+        sails_rs::io_struct_impl!(LastPriceUpdateTime () -> u64);
         sails_rs::io_struct_impl!(Leaderboard (tournament_id: u64) -> Vec<super::LeaderboardEntry>);
+        sails_rs::io_struct_impl!(MaxStaleMs () -> u64);
         sails_rs::io_struct_impl!(Participant (tournament_id: u64, participant: ActorId) -> super::ParticipantView);
         sails_rs::io_struct_impl!(Tournament (tournament_id: u64) -> super::TournamentView);
         sails_rs::io_struct_impl!(Tournaments () -> Vec<super::TournamentView>);
@@ -290,6 +342,13 @@ pub mod tradevault_arena {
             PriceUpdated {
                 tournament_id: u64,
                 price: u128,
+                timestamp: u64,
+            },
+            KeeperAdded {
+                keeper: ActorId,
+            },
+            KeeperRemoved {
+                keeper: ActorId,
             },
             PositionOpened {
                 tournament_id: u64,
@@ -325,6 +384,12 @@ pub mod tradevault_arena {
                 tournament_id: u64,
                 winners: Vec<WinnerPayout>,
             },
+            KeeperTickProcessed {
+                tournament_id: u64,
+                positions_closed: u32,
+                tournament_ended: bool,
+                tournament_settled: bool,
+            },
             RewardClaimed {
                 tournament_id: u64,
                 participant: ActorId,
@@ -337,12 +402,15 @@ pub mod tradevault_arena {
                 "TournamentJoined",
                 "MockPriceUpdated",
                 "PriceUpdated",
+                "KeeperAdded",
+                "KeeperRemoved",
                 "PositionOpened",
                 "PositionClosed",
                 "StopLossTriggered",
                 "TakeProfitTriggered",
                 "TournamentEnded",
                 "TournamentSettled",
+                "KeeperTickProcessed",
                 "RewardClaimed",
             ];
         }

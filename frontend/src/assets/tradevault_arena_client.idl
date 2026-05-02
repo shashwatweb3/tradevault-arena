@@ -91,6 +91,7 @@ constructor {
 };
 
 service TradevaultArena {
+  AddKeeper : (keeper: actor_id) -> bool;
   ClaimReward : (tournament_id: u64) -> u128;
   ClosePosition : (tournament_id: u64) -> ParticipantView;
   CreateTournament : (name: str, entry_fee: u128, start_time: u64, end_time: u64, initial_virtual_balance: u128, max_participants: u32) -> TournamentView;
@@ -99,12 +100,17 @@ service TradevaultArena {
   KeeperTick : (tournament_id: u64, new_btc_price: u128) -> KeeperTickSummary;
   OpenPosition : (tournament_id: u64, direction: PositionDirection, size: u128, stop_loss_price: opt u128, take_profit_price: opt u128) -> ParticipantView;
   ProcessTournament : (tournament_id: u64) -> KeeperTickSummary;
+  RemoveKeeper : (keeper: actor_id) -> bool;
   SettleTournament : (tournament_id: u64) -> SettlementResult;
   UpdateMockPrice : (new_price: u128) -> u128;
   UpdatePriceAndProcess : (tournament_id: u64, new_btc_price: u128) -> KeeperTickSummary;
   query Admin : () -> actor_id;
   query CurrentMockPrice : () -> u128;
+  query IsKeeper : (address: actor_id) -> bool;
+  query Keepers : () -> vec actor_id;
+  query LastPriceUpdateTime : () -> u64;
   query Leaderboard : (tournament_id: u64) -> vec LeaderboardEntry;
+  query MaxStaleMs : () -> u64;
   query Participant : (tournament_id: u64, participant: actor_id) -> ParticipantView;
   query Tournament : (tournament_id: u64) -> TournamentView;
   query Tournaments : () -> vec TournamentView;
@@ -125,6 +131,13 @@ service TradevaultArena {
     PriceUpdated: struct {
       tournament_id: u64,
       price: u128,
+      timestamp: u64,
+    };
+    KeeperAdded: struct {
+      keeper: actor_id
+    };
+    KeeperRemoved: struct {
+      keeper: actor_id
     };
     PositionOpened: struct {
       tournament_id: u64,
@@ -159,6 +172,12 @@ service TradevaultArena {
     TournamentSettled: struct {
       tournament_id: u64,
       winners: vec WinnerPayout,
+    };
+    KeeperTickProcessed: struct {
+      tournament_id: u64,
+      positions_closed: u32,
+      tournament_ended: bool,
+      tournament_settled: bool,
     };
     RewardClaimed: struct {
       tournament_id: u64,

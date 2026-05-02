@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "scaffold:client": "tsx scripts/scaffold-client.ts src/assets/tradevault_arena_client.idl",
-    "keeper": "tsx scripts/keeper.ts"
+    "scaffold:client": "tsx scripts/scaffold-client.ts src/assets/tradevault_arena_client.idl"
   },
   "dependencies": {
     "@gear-js/api": "0.44.2",
